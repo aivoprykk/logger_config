@@ -23,6 +23,7 @@ static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
 
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
+TIMER_INIT
 
 //logger_config_t m_config = {0};
 
