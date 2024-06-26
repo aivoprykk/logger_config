@@ -28,9 +28,9 @@ TIMER_INIT
 //logger_config_t m_config = {0};
 
 #ifdef USE_CUSTOM_CALIBRATION_VAL
-cosnt char *names = "cal_bat,cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_screens,stat_screens_time,stat_speed,archive_days,gpio12_screens,board_Logo,sail_Logo,sleep_off_screen,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,file_date_time,dynamic_model,timezone,ubx_file,sleep_info,ssid,password,ublox_type,Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,Sail_Logo,logTXT,logUBX,logUBX_nav_sat,logSBP,logGPY,logGPX,UBXfile,Sleep_info";
+cosnt char *config_item_names = "cal_bat,cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 #else
-const char *names = "cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_screens,stat_screens_time,stat_speed,archive_days,gpio12_screens,board_Logo,sail_Logo,sleep_off_screen,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,file_date_time,dynamic_model,timezone,ubx_file,sleep_info,ssid,password,ublox_type,Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,Sail_Logo,logTXT,logUBX,logUBX_nav_sat,logSBP,logGPY,logGPX,UBXfile,Sleep_info";
+const char *config_item_names = "cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 #endif
 
 logger_config_t *config_new() {
@@ -107,7 +107,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         printf("[%s] ! var\n", __FUNCTION__);
         goto err;
     }
-    if (!strstr(names, var)) {
+    if (!strstr(config_item_names, var)) {
         printf("[%s] ! in names\n", __FUNCTION__);
         goto err;
     }
@@ -727,8 +727,9 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     }
     // _ubx_hw_t ublox_hw = get_ublox_hw();
 
-    if (!strstr(names, name) || (ublox_hw != UBX_TYPE_M8 && !strcmp(name, "dynamic_model")))
+    if (!strstr(config_item_names, name) || (ublox_hw != UBX_TYPE_M8 && !strcmp(name, "dynamic_model"))){
         return 0;
+    }
 
     strbf_t lsb;
     if (str)
@@ -870,12 +871,12 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "board_Logo")) {
+    } else if (!strcmp(name, "board_Logo")||!strcmp(name, "board_logo")) {
         strbf_putn(&lsb, config->board_Logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Board_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "sail_Logo")) {
+    } else if (!strcmp(name, "sail_Logo")||!strcmp(name, "sail_logo")) {
         strbf_putn(&lsb, config->sail_Logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Sail_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
@@ -1015,38 +1016,38 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
     strbf_putc(sb, ',')
     if (str) {
         CONF_GETC(str);
-    } else {
-        strbf_puts(sb, "[");
-        //CONF_GET("cal_bat");
-        CONF_GET("cal_speed");
-        CONF_GET("sample_rate");
-        CONF_GET("gnss");
-        CONF_GET("speed_field");
-        CONF_GET("speed_large_font");
-        CONF_GET("bar_length");
-        CONF_GET("stat_screens");
-        CONF_GET("stat_screens_time");
-        CONF_GET("stat_speed");
-        CONF_GET("archive_days");
-        CONF_GET("gpio12_screens");
-        CONF_GET("board_Logo");
-        CONF_GET("sail_Logo");
-        CONF_GET("sleep_off_screen");
-        CONF_GET("log_txt");
-        CONF_GET("log_ubx");
-        CONF_GET("log_ubx_nav_sat");
-        CONF_GET("log_sbp");
-        CONF_GET("log_gpy");
-        CONF_GET("log_gpx");
-        CONF_GET("file_date_time");
-        CONF_GET("dynamic_model");
-        CONF_GET("timezone");
-        CONF_GET("ubx_file");
-        CONF_GET("sleep_info");
-        CONF_GET("ssid");
-        CONF_GET("password");
-        CONF_GETC("ublox_type");
-        strbf_puts(sb, "]\n");
+    // } else {
+    //     strbf_puts(sb, "[");
+    //     //CONF_GET("cal_bat");
+    //     CONF_GET("cal_speed");
+    //     CONF_GET("sample_rate");
+    //     CONF_GET("gnss");
+    //     CONF_GET("speed_field");
+    //     CONF_GET("speed_large_font");
+    //     CONF_GET("bar_length");
+    //     CONF_GET("stat_screens");
+    //     CONF_GET("stat_screens_time");
+    //     CONF_GET("stat_speed");
+    //     CONF_GET("archive_days");
+    //     CONF_GET("gpio12_screens");
+    //     CONF_GET("board_Logo");
+    //     CONF_GET("sail_Logo");
+    //     CONF_GET("sleep_off_screen");
+    //     CONF_GET("log_txt");
+    //     CONF_GET("log_ubx");
+    //     CONF_GET("log_ubx_nav_sat");
+    //     CONF_GET("log_sbp");
+    //     CONF_GET("log_gpy");
+    //     CONF_GET("log_gpx");
+    //     CONF_GET("file_date_time");
+    //     CONF_GET("dynamic_model");
+    //     CONF_GET("timezone");
+    //     CONF_GET("ubx_file");
+    //     CONF_GET("sleep_info");
+    //     CONF_GET("ssid");
+    //     CONF_GET("password");
+    //     CONF_GETC("ublox_type");
+    //     strbf_puts(sb, "]\n");
     }
     TIMER_E
     return strbf_finish(sb);  // str size 6444

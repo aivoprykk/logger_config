@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+extern const char *config_item_names;
 
 typedef struct logger_config_s {
     bool log_txt;          // switchinf off .txt files
