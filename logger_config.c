@@ -31,6 +31,7 @@ TIMER_INIT
 cosnt char *config_item_names = "cal_bat,cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 #else
 const char *config_item_names = "cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
 #endif
 
 logger_config_t *config_new() {
@@ -107,7 +108,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         printf("[%s] ! var\n", __FUNCTION__);
         goto err;
     }
-    if (!strstr(config_item_names, var)) {
+    if (!strstr(config_item_names, var) && !strstr(config_item_names_compat, var)) {
         printf("[%s] ! in names\n", __FUNCTION__);
         goto err;
     }
@@ -269,7 +270,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
 
-    } else if (!strcmp(var, "board_Logo") || !strcmp(var, "Board_Logo")) {
+    } else if (!strcmp(var, "board_logo") || !strcmp(var, "board_Logo") || !strcmp(var, "Board_Logo")) {
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
         }
@@ -279,7 +280,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
 
-    } else if (!strcmp(var, "sail_Logo") || !strcmp(var, "Sail_Logo")) {
+    } else if (!strcmp(var, "sail_logo") || !strcmp(var, "sail_Logo") || !strcmp(var, "Sail_Logo")) {
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
         }
@@ -533,10 +534,14 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
     changed = SET_CONF(root, "gpio12_screens");
     if (changed <= -2)
         changed = SET_CONF(root, "GPIO12_screens");
-    changed = SET_CONF(root, "board_Logo");
+    changed = SET_CONF(root, "board_logo");
+    if (changed <= -2)
+        changed = SET_CONF(root, "board_Logo");
     if (changed <= -2)
         changed = SET_CONF(root, "Board_Logo");
-    changed = SET_CONF(root, "sail_Logo");
+    changed = SET_CONF(root, "sail_logo");
+    if (changed <= -2)
+        changed = SET_CONF(root, "sail_Logo");
     if (changed <= -2)
         changed = SET_CONF(root, "Sail_Logo");
     changed = SET_CONF(root, "sleep_off_screen");
@@ -581,7 +586,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         ESP_LOGW(TAG, "log_ubx:     %c", config->log_ubx);
         ESP_LOGW(TAG, "ssid:        %s", config->ssid);
         ESP_LOGW(TAG, "password:    %s", config->password);
-        ESP_LOGW(TAG, "sail_Logo:   %d", config->sail_Logo);
+        ESP_LOGW(TAG, "sail_logo:   %d", config->sail_Logo);
     }
     return ret;
 #undef SET_CONF
@@ -791,10 +796,9 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     else if (!strcmp(name, "speed_large_font")) {  // fonts on the first line are bigger, actual speed font is smaller
         strbf_putn(&lsb, config->speed_large_font);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"int\",");
-            strbf_puts(&lsb, "\"values\":[{\"value\":2,\"title\":\"Simon_Font ON\"},");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"Large_Font ON\"},");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"Large_Font OFF\"}");
+            strbf_puts(&lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"int\",\"values\":[");
+            strbf_puts(&lsb, "{\"value\":0,\"title\":\"Large_Font OFF\"},");
+            strbf_puts(&lsb, "{\"value\":1,\"title\":\"Large_Font ON\"}");
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "dynamic_model")) {  // choice for dynamic model "Sea",if 0 model "portable" is used !!
@@ -840,18 +844,18 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "{\"value\":13,\"title\":\"GMT+13\"}");
             strbf_puts(&lsb, "]");
         }                                        // 2575
-    } else if (!strcmp(name, "stat_screens")) {  // choice for stats field when no speed, here stat_screen
+    } else if (!strcmp(name, "stat_screens")||!strcmp(name, "Stat_screens")) {  // choice for stats field when no speed, here stat_screen
         // 1, 2 and 3 will be active
         strbf_putn(&lsb, config->stat_screens);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : every digit shows the according stat_screen after each other\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "stat_screens_time")) {  // time between switching stat_screens
+    } else if (!strcmp(name, "stat_screens_time")||!strcmp(name, "Stat_screens_time")) {  // time between switching stat_screens
         strbf_putn(&lsb, config->stat_screens_time);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"The time between toggle the different stat screens\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "gpio12_screens")) {  // choice for stats field when gpio12 is activated
+    } else if (!strcmp(name, "gpio12_screens")||!strcmp(name, "GPIO12_screens")) {  // choice for stats field when gpio12 is activated
         // (pull-up high, low = active)
         strbf_putn(&lsb, config->gpio12_screens);
         if (mode) {
@@ -871,12 +875,12 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "board_Logo")||!strcmp(name, "board_logo")) {
+    } else if (!strcmp(name, "board_logo")||!strcmp(name, "board_logo")||!strcmp(name, "Board_Logo")) {
         strbf_putn(&lsb, config->board_Logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Board_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "sail_Logo")||!strcmp(name, "sail_logo")) {
+    } else if (!strcmp(name, "sail_logo")||!strcmp(name, "sail_logo")||!strcmp(name, "Sail_Logo")) {
         strbf_putn(&lsb, config->sail_Logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Sail_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
@@ -902,33 +906,33 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"how many days files will be moved to the 'Archive' dir\",\"type\":\"int\",\"ext\":\"d\"");
         }
-    } else if (!strcmp(name, "log_txt")) {  // switchinf off .txt files
+    } else if (!strcmp(name, "log_txt")||!strcmp(name, "logTXT")) {  // switchinf off .txt files
         strbf_putn(&lsb, config->log_txt);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .txt\",\"type\":\"bool\"");
         }
-    } else if (!strcmp(name, "log_ubx")) {  // log to .ubx
+    } else if (!strcmp(name, "log_ubx")||!strcmp(name, "logUBX")) {  // log to .ubx
         strbf_putn(&lsb, config->log_ubx);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .ubx\",\"type\":\"bool\"");
         }
-    } else if (!strcmp(name, "log_ubx_nav_sat")) {  // log nav sat msg to .ubx
+    } else if (!strcmp(name, "log_ubx_nav_sat")||!strcmp(name, "logUBX_nav_sat")) {  // log nav sat msg to .ubx
         strbf_putn(&lsb, config->log_ubx_nav_sat);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log nav sat msg to .ubx\",\"type\":\"bool\"");
         }
-    } else if (!strcmp(name, "log_sbp")) {  // log to .sbp
+    } else if (!strcmp(name, "log_sbp")||!strcmp(name, "logSBP")) {  // log to .sbp
         strbf_putn(&lsb, config->log_sbp);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .sbp\",\"type\":\"bool\"");
         }
-    } else if (!strcmp(name, "log_gpy")) {
+    } else if (!strcmp(name, "log_gpy")||!strcmp(name, "logGPY")) {
         strbf_putn(&lsb, config->log_gpy);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .gpy\",\"type\":\"bool\"");
         }
     }  // log to .gps
-    else if (!strcmp(name, "log_gpx")) {
+    else if (!strcmp(name, "log_gpx")||!strcmp(name, "logGPX")) {
         strbf_putn(&lsb, config->log_gpx);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .gpx\",\"type\":\"bool\"");
@@ -945,7 +949,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     }  // type of filenaming, with MAC adress or datetime
-    else if (!strcmp(name, "ubx_file")) {
+    else if (!strcmp(name, "ubx_file")||!strcmp(name, "UBXfile")) {
         strbf_puts(&lsb, "\"");
         strbf_puts(&lsb, config->ubx_file);
         strbf_puts(&lsb, "\"");
@@ -953,7 +957,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"info\":\"your preferred filename\",\"type\":\"str\"");
         }
     }  // your preferred filename
-    else if (!strcmp(name, "sleep_info")) {
+    else if (!strcmp(name, "sleep_info")||!strcmp(name, "Sleep_info")) {
         strbf_puts(&lsb, "\"");
         strbf_puts(&lsb, config->sleep_info);
         strbf_puts(&lsb, "\"");
@@ -1082,8 +1086,8 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("stat_speed");
     CONF_GET("archive_days");
     CONF_GET("gpio12_screens");
-    CONF_GET("board_Logo");
-    CONF_GET("sail_Logo");
+    CONF_GET("board_logo");
+    CONF_GET("sail_logo");
     CONF_GET("sleep_off_screen");
     CONF_GET("log_txt");
     CONF_GET("log_ubx");
