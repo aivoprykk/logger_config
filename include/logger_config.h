@@ -42,8 +42,8 @@ typedef struct logger_config_s {
     uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
     uint16_t archive_days;    // how many days files will be moved to the "Archive" dir
 
-    //float cal_bat;          // calibration for read out bat voltage
-    float cal_speed;          // conversion m/s to km/h, for knots use 1.944
+    // float cal_bat;          // calibration for read out bat voltage
+    uint8_t speed_unit;       // 0 = m/s, 1 = km/h, 2 = knots
     float timezone;           // choice for timedifference in hours with UTC, for Belgium 1 or 2 (summertime)
  
     char ubx_file[32];    // your preferred filename
@@ -79,7 +79,7 @@ typedef struct logger_config_s {
     .gpio12_screens = 12U, \
     .bar_length = 1852, \
     .archive_days = 30, \
-    .cal_speed = 3.6, \
+    .speed_unit = 1, \
     .timezone = 2, \
     .ubx_file = "gps", \
     .sleep_info = "ESP GPS", \

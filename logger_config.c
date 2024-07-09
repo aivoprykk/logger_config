@@ -8,16 +8,13 @@
 #include "esp_log.h"
 
 #include "logger_config.h"
-#include "logger_common.h"
 #include "ubx.h"
 
-//#include "context.h"
 #include "json.h"
-//#include "cJSON.h"
-//#include "sdcard.h"
 #include "strbf.h"
 #include "vfs.h"
 #include "config_events.h"
+#include "logger_common.h"
 
 static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
@@ -28,9 +25,9 @@ TIMER_INIT
 //logger_config_t m_config = {0};
 
 #ifdef USE_CUSTOM_CALIBRATION_VAL
-cosnt char *config_item_names = "cal_bat,cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 #else
-const char *config_item_names = "cal_speed,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
 #endif
 
@@ -58,12 +55,12 @@ void config_deinit(logger_config_t *config) {
 }
 
 logger_config_t *config_defaults(logger_config_t *config) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     return config;
 }
 
 logger_config_t *config_clone(logger_config_t *orig, logger_config_t *config) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     if (!orig || !config)
         return config;
     memcpy(config, orig, sizeof(logger_config_t));
@@ -71,7 +68,7 @@ logger_config_t *config_clone(logger_config_t *orig, logger_config_t *config) {
 }
 
 JsonNode *config_parse(const char *json) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     JsonNode *root = 0;
     if (!json_validate(json)) {
         ESP_LOGE(TAG, "Bad json: %s", json);
@@ -86,7 +83,7 @@ JsonNode *config_parse(const char *json) {
 }
 
 int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t force) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     if (!root) {
         return -1;
     }
@@ -139,13 +136,13 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
 
     } else 
 #endif
-    if (!strcmp(var, "cal_speed")) {  // conversion m/s to km/h, for knots use 1.944
+    if (!strcmp(var, "speed_unit")) {  // conversion m/s to km/h, for knots use 1.944
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
         }
         float val = value->data.number_;
-        if (force || val != config->cal_speed) {
-            config->cal_speed = val;
+        if (force || val != config->speed_unit) {
+            config->speed_unit = val;
             changed = 1;
         }
 
@@ -502,12 +499,12 @@ int config_save_var(struct logger_config_s *config, const char * filename, const
 }
 
 int config_save_var_b(logger_config_t *config, const char * filename, const char * filename_b, const char *json, uint8_t ublox_hw) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     return config_save_var(config, filename, filename_b, json, 0, ublox_hw);
 }
 
 esp_err_t config_decode(logger_config_t *config, const char *json) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     int ret = ESP_OK;
     JsonNode *root = config_parse(json);
     if (!root) {
@@ -516,7 +513,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 #define SET_CONF(a, b) config_set(config, a, b, 0);
     int changed;
     //changed = SET_CONF(root, "cal_bat");
-    changed = SET_CONF(root, "cal_speed");
+    changed = SET_CONF(root, "speed_unit");
     changed = SET_CONF(root, "sample_rate");
     changed = SET_CONF(root, "gnss");
     changed = SET_CONF(root, "speed_field");
@@ -580,7 +577,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 
     if (ret == ESP_FAIL) {
         //ESP_LOGW(TAG, "cal_bat:     %.2f", config->cal_bat);
-        ESP_LOGW(TAG, "cal_speed:   %.2f", config->cal_speed);
+        ESP_LOGW(TAG, "speed_unit:   %hhu", config->speed_unit);
         ESP_LOGW(TAG, "sample_rate: %d", config->sample_rate);
         ESP_LOGW(TAG, "log_sbp:     %c", config->log_sbp);
         ESP_LOGW(TAG, "log_ubx:     %c", config->log_ubx);
@@ -639,7 +636,7 @@ done:
 }
 
 logger_config_t *config_fix_values(logger_config_t *config) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     // int Logo_choice=config->Logo_choice;//preserve value config->Logo_choice
     // for config->txt update !!
     /* if (config->cal_bat > 1)
@@ -652,7 +649,7 @@ logger_config_t *config_fix_values(logger_config_t *config) {
 }
 
 int config_compare(logger_config_t *orig, logger_config_t *config) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     if (!orig || !config)
         return -1;
     if (orig && !config)
@@ -660,9 +657,7 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
     if (!orig && config)
         return -3;
     if(orig && config) {
-        /* if (orig->cal_bat != config->cal_bat)
-        return 1; */
-        if (orig->cal_speed != config->cal_speed)
+        if (orig->speed_unit != config->speed_unit)
             return 2;
         if (orig->sample_rate != config->sample_rate)
             return 3;
@@ -762,10 +757,14 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         }
     } else 
 #endif
-    if (!strcmp(name, "cal_speed")) {  // conversion m/s to km/h, for knots use 1.944
-        strbf_putd(&lsb, config->cal_speed, 1, 3);
+    if (!strcmp(name, "speed_unit")) {  // speed units, 0 = m/s 1 = km/h, 2 = knots
+        strbf_putn(&lsb, config->speed_unit);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"conversion m/s to km/h, for knots use 1.944\",\"type\":\"float\",\"ext\":\"km/h\"");
+            strbf_puts(&lsb, ",\"info\":\"m/s, km/h or knots\",\"type\":\"int\",\"values\":[");
+            strbf_puts(&lsb, "{\"value\":0,\"title\":\"m/s\"},");
+            strbf_puts(&lsb, "{\"value\":1,\"title\":\"km/h\"},");
+            strbf_puts(&lsb, "{\"value\":2,\"title\":\"knots\"}");
+            strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "sample_rate")) {  // gps_rate in Hz, 1, 5 or 10Hz !!!
         strbf_putn(&lsb, config->sample_rate);
@@ -1023,7 +1022,7 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
     // } else {
     //     strbf_puts(sb, "[");
     //     //CONF_GET("cal_bat");
-    //     CONF_GET("cal_speed");
+    //     CONF_GET("speed_unit");
     //     CONF_GET("sample_rate");
     //     CONF_GET("gnss");
     //     CONF_GET("speed_field");
@@ -1060,7 +1059,7 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
 }
 
 char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw) {
-    LOGR
+    ILOG(TAG,"[%s]",__func__);
     size_t blen = BUFSIZ / 3 * 2, len = 0;
     char buf[blen], *p = 0;
 #define CONF_GETC(a)                                    \
@@ -1075,7 +1074,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
 
     strbf_puts(sb, "{\n");
     //CONF_GET("cal_bat");
-    CONF_GET("cal_speed");
+    CONF_GET("speed_unit");
     CONF_GET("sample_rate");
     CONF_GET("gnss");
     CONF_GET("speed_field");
