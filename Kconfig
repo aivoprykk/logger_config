@@ -1,0 +1,28 @@
+menu "Logger Config Module Options"
+    choice
+        bool "Default log verbosity"
+        default LOGGER_CONFIG_LOG_LEVEL_WARN
+        help
+            Specify how important log should be added.
+        config LOGGER_CONFIG_LOG_LEVEL_TRACE
+            bool "A lot of logs to give detailed information"
+        config LOGGER_CONFIG_LOG_LEVEL_INFO
+            bool "Log important events"
+        config LOGGER_CONFIG_LOG_LEVEL_WARN
+            bool "Log if something unwanted happened but didn't cause a problem"
+        config LOGGER_CONFIG_LOG_LEVEL_ERROR
+            bool "Only critical issues, when the system may fail"
+        config LOGGER_CONFIG_LOG_LEVEL_USER
+            bool "Only logs added by the user"
+        config LOGGER_CONFIG_LOG_LEVEL_NONE
+            bool "Do not log anything"
+    endchoice
+    config LOGGER_CONFIG_LOG_LEVEL
+        int
+        default 0 if LOGGER_CONFIG_LOG_LEVEL_TRACE
+        default 1 if LOGGER_CONFIG_LOG_LEVEL_INFO
+        default 2 if LOGGER_CONFIG_LOG_LEVEL_WARN
+        default 3 if LOGGER_CONFIG_LOG_LEVEL_ERROR
+        default 4 if LOGGER_CONFIG_LOG_LEVEL_USER
+        default 5 if LOGGER_CONFIG_LOG_LEVEL_NONE
+endmenu

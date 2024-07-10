@@ -14,15 +14,13 @@
 #include "strbf.h"
 #include "vfs.h"
 #include "config_events.h"
+#include "logger_config_private.h"
 #include "logger_common.h"
 
 static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
 
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
-TIMER_INIT
-
-//logger_config_t m_config = {0};
 
 #ifdef USE_CUSTOM_CALIBRATION_VAL
 cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
@@ -113,12 +111,11 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         printf("[%s] ! value\n", __FUNCTION__);
         goto err;
     }
-    #ifdef DEBUG
     if (name || str)
-        printf("[%s] {name: ( %s | %s )}\n", __FUNCTION__, (name && name->data.string_ ? name->data.string_ : "-"), (str ? str : "-"));
+        DLOG(TAG, "[%s] {name: ( %s | %s )}\n", __FUNCTION__, (name && name->data.string_ ? name->data.string_ : "-"), (str ? str : "-"));
     if (value)
-        printf("[%s] {value: ( %s | %f ), key: %s}\n", __FUNCTION__, (value->tag == JSON_STRING ? value->data.string_ : "-"), (value->tag == JSON_NUMBER ? value->data.number_ : 0), (value->key ? value->key : "-"));
-    #endif
+        DLOG(TAG, "[%s] {value: ( %s | %f ), key: %s}\n", __FUNCTION__, (value->tag == JSON_STRING ? value->data.string_ : "-"), (value->tag == JSON_NUMBER ? value->data.number_ : 0), (value->key ? value->key : "-"));
+
 #ifdef USE_CUSTOM_CALIBRATION_VAL
     if (!strcmp(var, "cal_bat")) {  // calibration for read out bat voltage
         if (!value || value->tag != JSON_NUMBER) {
@@ -473,9 +470,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
 }
 
 int config_set_var(logger_config_t *config, const char *json, const char *var) {
-    #ifdef DEBUG
-    ESP_LOGI(TAG, "[%s] '%s'", __FUNCTION__, json);
-    #endif
+    ILOG(TAG, "[%s] '%s'", __FUNCTION__, json);
     JsonNode *root = config_parse(json);
     if (!root) {
         return -1;
@@ -487,14 +482,15 @@ int config_set_var(logger_config_t *config, const char *json, const char *var) {
 }
 
 int config_save_var(struct logger_config_s *config, const char * filename, const char * filename_b, const char *json, const char *var, uint8_t ublox_hw) {
-    TIMER_S
+    ILOG(TAG,"[%s]",__func__);
+    IMEAS_START();
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     int ret = config_set_var(config, json, var);
     if (ret > 0) {
         ret = config_save_json(config, filename, filename_b, ublox_hw);
     }
     xSemaphoreGive(c_sem_lock);
-    TIMER_E
+    IMEAS_END(TAG, "[%s] took %llu us", __FUNCTION__);
     return ret;
 }
 
@@ -577,30 +573,29 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 
     if (ret == ESP_FAIL) {
         //ESP_LOGW(TAG, "cal_bat:     %.2f", config->cal_bat);
-        ESP_LOGW(TAG, "speed_unit:   %hhu", config->speed_unit);
-        ESP_LOGW(TAG, "sample_rate: %d", config->sample_rate);
-        ESP_LOGW(TAG, "log_sbp:     %c", config->log_sbp);
-        ESP_LOGW(TAG, "log_ubx:     %c", config->log_ubx);
-        ESP_LOGW(TAG, "ssid:        %s", config->ssid);
-        ESP_LOGW(TAG, "password:    %s", config->password);
-        ESP_LOGW(TAG, "sail_logo:   %d", config->sail_Logo);
+        WLOG(TAG, "speed_unit:   %hhu", config->speed_unit);
+        WLOG(TAG, "sample_rate: %d", config->sample_rate);
+        WLOG(TAG, "log_sbp:     %c", config->log_sbp);
+        WLOG(TAG, "log_ubx:     %c", config->log_ubx);
+        WLOG(TAG, "ssid:        %s", config->ssid);
+        WLOG(TAG, "password:    %s", config->password);
+        WLOG(TAG, "sail_logo:   %d", config->sail_Logo);
     }
     return ret;
 #undef SET_CONF
 }
 
 esp_err_t config_load_json(logger_config_t *config, const char *filename, const char *filename_backup) {
-    TIMER_S
+    IMEAS_START();
     int ret = ESP_OK;
     char *json = 0;
-    ESP_LOGI(TAG, "configuration will read from %s", filename);
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     if ((json = s_read_from_file(filename, CONFIG_SD_MOUNT_POINT))) {
-        ESP_LOGI(TAG, "configuration read from %s", filename);
+        ILOG(TAG,"[%s] from %s done",__func__, filename);
     } else if ((json = s_read_from_file(filename_backup, CONFIG_SD_MOUNT_POINT))) {
-        ESP_LOGI(TAG, "configuration read from %s", filename_backup);
+        ILOG(TAG,"[%s] from %s done",__func__, filename_backup);
     } else {
-        ESP_LOGE(TAG, "Configuration not found...");
+        ESP_LOGE(TAG, "configuration not found...");
         goto done;
     }
     //printf("conf:%s\n", json);
@@ -610,7 +605,7 @@ done:
     if (json)
         free(json);
     esp_event_post(CONFIG_EVENT, LOGGER_CONFIG_EVENT_CONFIG_LOAD_DONE, config, sizeof(logger_config_t), portMAX_DELAY);
-    TIMER_E
+    IMEAS_END(TAG, "[%s] took %llu us", __FUNCTION__);
     return ret;
 }
 
@@ -620,12 +615,8 @@ esp_err_t config_save_json(logger_config_t *config, const char *filename, const 
     strbf_init(&sb);
     char *json = config_encode_json(config, &sb, ublox_hw);
     if (!json_validate(json)) {
-        ESP_LOGE(TAG, "Bad json: %s", json);
+        ESP_LOGE(TAG, "[%s] bad json: %s", __FUNCTION__ , json);
         goto done;
-    #ifdef DEBUG
-    } else {
-        printf("Going to save json %s", sb.start);
-    #endif
     }
     s_rename_file(filename, filename_backup, CONFIG_SD_MOUNT_POINT);
     ret = s_write(filename, CONFIG_SD_MOUNT_POINT, sb.start, sb.cur - sb.start);
@@ -720,7 +711,7 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
 }
 
 char *config_get(logger_config_t *config, const char *name, char *str, size_t *len, size_t max, uint8_t mode, uint8_t ublox_hw) {
-    ESP_LOGI(TAG, "[%s] %s", __FUNCTION__, name);
+    ILOG(TAG, "[%s] %s", __FUNCTION__, name);
     *len = 0;
     if (!config) {
         return 0;
@@ -998,14 +989,13 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     if (mode)
         strbf_puts(&lsb, "}");
     *len = lsb.cur - lsb.start;
-    #ifdef DEBUG
-    printf("conf: %s size: %d\n", strbf_finish(&lsb), *len);
-    #endif
+    DLOG(TAG, "[%s] conf: %s size: %d\n", __FUNCTION__, strbf_finish(&lsb), *len);
     return strbf_finish(&lsb);
 }
 
 char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uint8_t ublox_hw) {
-    TIMER_S
+    ILOG(TAG,"[%s]",__func__);
+    IMEAS_START();
     size_t blen = 8 * BUFSIZ, len = 0;
     char buf[blen], *p = 0;
 #define CONF_GETC(a)                                    \
@@ -1052,7 +1042,7 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
     //     CONF_GETC("ublox_type");
     //     strbf_puts(sb, "]\n");
     }
-    TIMER_E
+    IMEAS_END(TAG, "[%s] took %llu us", __FUNCTION__);
     return strbf_finish(sb);  // str size 6444
 #undef CONF_GET
 #undef CONF_GETC
