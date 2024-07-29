@@ -761,18 +761,32 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         strbf_putn(&lsb, config->sample_rate);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"gps_rate in Hz\",\"type\":\"int\",\"values\":[{\"value\":1,\"title\":\"1Hz\"},{\"value\":5,\"title\":\"5Hz\"},{\"value\":10,\"title\":\"10Hz\"}");
-            strbf_puts(&lsb, ublox_hw >= UBX_TYPE_M9 ? ",{\"value\":20,\"title\":\"20Hz\"}]" : "]");
+            if (ublox_hw >= UBX_TYPE_M9) {
+                strbf_puts(&lsb, ",{\"value\":16,\"title\":\"16Hz\"}");
+                strbf_puts(&lsb, ",{\"value\":20,\"title\":\"20Hz\"}");
+            }
+            strbf_puts(&lsb, "]");
             strbf_puts(&lsb, ",\"ext\":\"Hz\"");
         }
-    } else if (!strcmp(name, "gnss")) {  // default setting 2 GPS + GLONAS
+    } else if (!strcmp(name, "gnss")) {
         strbf_putn(&lsb, config->gnss);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"gnss choice : GPS + GLONAS + GALILEO (M8 ublox ROM version 3.01, M10).<br> Some Beitian modules still have a old firmware, ROM 2.01. Here, Galileo can't be activated. M9 can do 4 GNSS simultan!\",\"type\":\"int\",");
-            strbf_puts(&lsb, "\"values\":[{\"value\":2,\"title\":\"GPS + GLONAS\"},");
-            strbf_puts(&lsb, "{\"value\":3,\"title\":\"GPS + GALILEO + GLONASS\"},");
-            strbf_puts(&lsb, "{\"value\":4,\"title\":\"GPS + GALILEO + BEIDOU\"}");
+            strbf_puts(&lsb, ",\"info\":\" default ");
             if (ublox_hw >= UBX_TYPE_M9) {
-                strbf_puts(&lsb, ",{\"value\":5,\"title\":\"GPS + GALILEO + BEIDOU + GLONAS\"}");
+                strbf_puts(&lsb, "4 gnss: GPS(us) + GALILEO(eu) + BEIDOU(cn) + GLONASS(ru), also SBAS(us) and QZSS(jp) augmentation services enabled by default.");
+            }
+            else {
+                strbf_puts(&lsb, "3 gnss: GPS + GALILEO + GLONASS");
+            }
+            strbf_puts(&lsb, "\",\"type\":\"int\",\"values\":[");
+            strbf_puts(&lsb, "{\"value\":39,\"title\":\"GPS(G) + GALILEO(E)\"},");
+            strbf_puts(&lsb, "{\"value\":43,\"title\":\"GPS(G) + BEIDOU(B)\"},");
+            strbf_puts(&lsb, "{\"value\":99,\"title\":\"GPS(G) + GLONASS(R)\"},");
+            strbf_puts(&lsb, "{\"value\":47,\"title\":\"GPS(G) + GALILEO(E) + BEIDOU(B)\"},");
+            strbf_puts(&lsb, "{\"value\":103,\"title\":\"GPS(G) + GALILEO(E) + GLONASS(R)\"},");
+            strbf_puts(&lsb, "{\"value\":107,\"title\":\"GPS(G) + BEIDOU(B) + GLONASS(R) \"}");
+            if (ublox_hw >= UBX_TYPE_M9) {
+                strbf_puts(&lsb, ",{\"value\":111,\"title\":\"GPS(G) + GALILEO(E) + BEIDOU(B) + GLONASS(R)\"}");
             }
             strbf_puts(&lsb, "]");
         }
@@ -786,10 +800,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     else if (!strcmp(name, "speed_large_font")) {  // fonts on the first line are bigger, actual speed font is smaller
         strbf_putn(&lsb, config->speed_large_font);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"int\",\"values\":[");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"Large_Font OFF\"},");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"Large_Font ON\"}");
-            strbf_puts(&lsb, "]");
+            strbf_puts(&lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "dynamic_model")) {  // choice for dynamic model "Sea",if 0 model "portable" is used !!
         strbf_putn(&lsb, config->dynamic_model);
@@ -856,7 +867,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         // resave the config
         strbf_putn(&lsb, config->stat_screens_persist);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"The time between toggle the different stat screens\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"info\":\"Persist stat screens\",\"type\":\"int\"");
         }
     } else if (!strcmp(name, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
         // activated (pull-up high, low = active) / for

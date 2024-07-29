@@ -26,8 +26,8 @@ typedef struct logger_config_s {
     uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
     uint8_t dynamic_model;           // choice for dynamic model "Sea",if 0 model "portable" is used !!
     uint8_t stat_screens_time;       // time between switching stat_screens
-    uint8_t stat_screens_persist;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active for resave the config
-    uint8_t gpio12_screens_persist;  // choice for stats field when gpio12 is activated (pull-up high, low = active) for resave the config
+    uint32_t stat_screens_persist;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active for resave the config
+    uint32_t gpio12_screens_persist;  // choice for stats field when gpio12 is activated (pull-up high, low = active) for resave the config
     uint8_t board_Logo;
     uint8_t sail_Logo;
     uint8_t sleep_off_screen;
@@ -65,8 +65,8 @@ typedef struct logger_config_s {
     .speed_large_font = 1, \
     .dynamic_model = 0, \
     .stat_screens_time = 3, \
-    .stat_screens_persist = 123U, \
-    .gpio12_screens_persist = 12U, \
+    .stat_screens_persist = 123456U, \
+    .gpio12_screens_persist = 123456U, \
     .board_Logo = 1, \
     .sail_Logo = 1, \
     .sleep_off_screen = 11, \
@@ -75,8 +75,8 @@ typedef struct logger_config_s {
     .config_fail = 0, \
     .ublox_type = 0, \
     .speed_field_count =9, \
-    .stat_screens = 123U, \
-    .gpio12_screens = 12U, \
+    .stat_screens = 123456U, \
+    .gpio12_screens = 123456U, \
     .bar_length = 1852, \
     .archive_days = 30, \
     .speed_unit = 1, \
