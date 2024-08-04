@@ -27,7 +27,168 @@ cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field
 #else
 const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
+const char * const config_gps_item_names[] = {"gnss", "sample_rate", "timezone", "speed_unit", "log_txt", "log_ubx", "log_sbp", "log_gpy", "log_gpx", "log_ubx_nav_sat", "dynamic_model"};
 #endif
+
+logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
+    assert(config);
+    if(!item) return 0;
+    item->name = config_gps_item_names[num];
+    item->pos = num;
+    if (!strcmp(item->name, "gnss")) {
+        item->value = config->gnss;
+        if(config->gnss == 111) {
+            item->desc = "G + E + B + R";
+        }
+        else if(config->gnss == 107) {
+            item->desc = "G + B + R";
+        }
+        else if(config->gnss == 103) {
+            item->desc = "G + E + R";
+        }
+        else if(config->gnss == 47) {
+            item->desc = "G + E + B";
+        }
+        else if(config->gnss == 99) {
+            item->desc = "G + R";
+        }
+        else if(config->gnss == 43) {
+            item->desc = "G + B";
+        }
+        else if(config->gnss == 39) {
+            item->desc = "G + E";
+        }
+        else {
+            item->desc = "not set";
+        }
+    } else if (!strcmp(item->name, "sample_rate")) {
+        item->value = config->sample_rate;
+        if(config->sample_rate == 1) {
+            item->desc = "1 Hz";
+        }
+        else if(config->sample_rate == 5) {
+            item->desc = "5 Hz";
+        }
+        else if(config->sample_rate == 10) {
+            item->desc = "10 Hz";
+        }
+        else if(config->sample_rate == 16) {
+            item->desc = "16 Hz";
+        }
+        else if(config->sample_rate == 20) {
+            item->desc = "20 Hz";
+        }
+        else {
+            item->desc = "not set";
+        }
+    } else if (!strcmp(item->name, "timezone")) {
+        item->value = config->timezone;
+        if(config->timezone == 1) {
+            item->desc = "UTC+1";
+        }
+        else if(config->timezone == 2) {
+            item->desc = "UTC+2";
+        }
+        else if(config->timezone == 3) {
+            item->desc = "UTC+3";
+        }
+        else {
+            item->desc = "UTC";
+        }
+    } else if (!strcmp(item->name, "speed_unit")) {
+        item->value = config->speed_unit;
+        if(config->speed_unit == 1) {
+            item->desc = "km/h";
+        }
+        else if(config->speed_unit == 2) {
+            item->desc = "knots";
+        }
+        else {
+            item->desc = "m/s";
+        }
+    } else if (!strcmp(item->name, "log_txt")) {
+        item->value = config->log_txt ? 1 : 0;
+        item->desc = config->log_txt ? "on" : "off";
+    } else if (!strcmp(item->name, "log_ubx")) {
+        item->value = config->log_ubx ? 1 : 0;
+        item->desc = config->log_ubx ? "on" : "off";
+    } else if (!strcmp(item->name, "log_sbp")) {
+        item->value = config->log_sbp ? 1 : 0;
+        item->desc = config->log_sbp ? "on" : "off";
+    } else if (!strcmp(item->name, "log_gpy")) {
+        item->value = config->log_gpy ? 1 : 0;
+        item->desc = config->log_gpy ? "on" : "off";
+    } else if (!strcmp(item->name, "log_gpx")) {
+        item->value = config->log_gpx ? 1 : 0;
+        item->desc = config->log_gpx ? "on" : "off";
+    } else if (!strcmp(item->name, "log_ubx_nav_sat")) {
+        item->value = config->log_ubx_nav_sat ? 1 : 0;
+        item->desc = config->log_ubx_nav_sat ? "on" : "off";
+    } else if (!strcmp(item->name, "dynamic_model")) {
+        item->value = config->dynamic_model;
+        if(config->dynamic_model == 1) {
+            item->desc = "sea";
+        }
+        else if(config->dynamic_model == 2) {
+            item->desc = "automotive";
+        }
+        else {
+            item->desc = "portable";
+        }
+    }
+    return item;
+}
+
+int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+    assert(config);
+    if(num>=L_CONFIG_GPS_FIELDS) return 0;
+    const char *name = config_gps_item_names[num];
+    xSemaphoreTake(c_sem_lock, portMAX_DELAY);
+    if (!strcmp(name, "gnss")) {
+        if(config->gnss == 111) config->gnss = 107;
+        else if(config->gnss == 107) config->gnss = 103;
+        else if(config->gnss == 103) config->gnss = 47;
+        else if(config->gnss == 47) config->gnss = 99;
+        else if(config->gnss == 99) config->gnss = 43;
+        else if(config->gnss == 43) config->gnss = 39;
+        else if(config->gnss == 39) config->gnss = 111;
+        else config->gnss = 111;
+    } else if (!strcmp(name, "sample_rate")) {
+        if(config->sample_rate == 5) config->sample_rate = 1;
+        else if(config->sample_rate == 10) config->sample_rate = 5;
+        else if(config->sample_rate == 16) config->sample_rate = 10;
+        else if(config->sample_rate == 20) config->sample_rate = 16;
+        else config->sample_rate = 20;
+    } else if (!strcmp(name, "timezone")) {
+        if(config->timezone == 1) config->timezone = 2;
+        else if(config->timezone == 2) config->timezone = 3;
+        else if(config->timezone == 3) config->timezone = 1;
+        else config->timezone = 1;
+   } else if (!strcmp(name, "speed_unit")) {
+        if(config->speed_unit == 1) config->speed_unit = 0;
+        else if(config->speed_unit == 2) config->speed_unit = 1;
+        else  config->speed_unit = 2;
+    } else if (!strcmp(name, "log_txt")) {
+        config->log_txt = config->log_txt ? 0 : 1;
+    } else if (!strcmp(name, "log_ubx")) {
+        config->log_ubx = config->log_ubx ? 0 : 1;
+    } else if (!strcmp(name, "log_sbp")) {
+        config->log_sbp = config->log_sbp ? 0 : 1;
+    } else if (!strcmp(name, "log_gpy")) {
+        config->log_gpy = config->log_gpy ? 0 : 1;
+    } else if (!strcmp(name, "log_gpx")) {
+        config->log_gpx = config->log_gpx ? 0 : 1;
+    } else if (!strcmp(name, "log_ubx_nav_sat")) {
+        config->log_ubx_nav_sat = config->log_ubx_nav_sat ? 0 : 1;
+    } else if (!strcmp(name, "dynamic_model")) {
+        if(config->dynamic_model == 0) config->dynamic_model = 2;
+        else if(config->dynamic_model == 2) config->dynamic_model = 1;
+        else config->dynamic_model = 0;
+    }
+    config_save_json(config, filename, filename_b, ublox_hw);
+    xSemaphoreGive(c_sem_lock);
+    return 1;
+}
 
 logger_config_t *config_new() {
     logger_config_t * c = calloc(1, sizeof(logger_config_t));

@@ -11,6 +11,29 @@ extern "C" {
 #endif
 
 extern const char *config_item_names;
+extern const char * const config_gps_item_names[];
+
+#define L_CONFIG_GPS_FIELDS 10
+
+typedef struct logger_config_item_s {
+    const char * name;
+    int pos;
+    uint8_t value;
+    const char *desc;
+} logger_config_item_t;
+
+typedef struct logger_config_gps_s {
+    uint8_t gnss;             // default setting 2 GNSS, GPS & GLONAS
+    uint8_t sample_rate;      // gps_rate in Hz, 1, 5 or 10Hz !!!
+    uint8_t speed_unit;       // 0 = m/s, 1 = km/h, 2 = knots
+    uint8_t log_txt;          // switchinf off .txt files
+    uint8_t log_ubx;          // log to .ubx
+    uint8_t log_sbp;          // log to .sbp
+    uint8_t log_gpy;          // log to .gps
+    uint8_t log_gpx;          // log to .gpx
+    uint8_t log_ubx_nav_sat;  // log nav sat msg to .ubx
+    uint8_t dynamic_model;    // choice for dynamic model "Sea",if 0 model "portable" is used !!
+} logger_config_gps_t;
 
 typedef struct logger_config_s {
     bool log_txt;          // switchinf off .txt files
@@ -59,14 +82,14 @@ typedef struct logger_config_s {
     .log_gpy = false, \
     .log_gpx = false, \
     .log_ubx_nav_sat = false, \
-    .sample_rate = 5, \
-    .gnss = 5, \
+    .sample_rate = 10, \
+    .gnss = 111, \
     .speed_field = 1, \
     .speed_large_font = 1, \
     .dynamic_model = 0, \
     .stat_screens_time = 3, \
-    .stat_screens_persist = 123456U, \
-    .gpio12_screens_persist = 123456U, \
+    .stat_screens_persist = 12345678U, \
+    .gpio12_screens_persist = 12345678U, \
     .board_Logo = 1, \
     .sail_Logo = 1, \
     .sleep_off_screen = 11, \
@@ -223,6 +246,9 @@ int config_save_var(struct logger_config_s *config, const char *filename, const 
 * @param var The variable to save
 */
 int config_save_var_b(struct logger_config_s *config, const char *filename, const char * filename_b, const char *json, uint8_t ublox_hw);
+
+logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
+int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
 
 #ifdef __cplusplus
 }
