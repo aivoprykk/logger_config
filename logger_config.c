@@ -20,15 +20,123 @@
 static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
 
+#define lengthof(x) (sizeof(x) / sizeof((x)[0]))
+
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 
 #ifdef USE_CUSTOM_CALIBRATION_VAL
-cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
 #else
-const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,sleep_off_screen,file_date_time,dynamic_model,timezone,ssid,password,ublox_type,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+#endif
 const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
 const char * const config_gps_item_names[] = {"gnss", "sample_rate", "timezone", "speed_unit", "log_txt", "log_ubx", "log_sbp", "log_gpy", "log_gpx", "log_ubx_nav_sat", "dynamic_model"};
-#endif
+const char * const config_speed_field_item_names[] = {"dynamic","stat_10_sec","stat_alpha","stat_1852_m","stat_dist_500m","stat_max_2s_10s","stat_half_hour","stat_1_hour", "stat_1h_dynamic"};
+const char * const config_stat_screen_item_names[] = {"stat_10_sec","stat_2_sec","stat_250_m","stat_500_m","stat_1852_m","stat_alfa","stat_avg_10sec","stat_stat1","stat_avg_a500"};
+const char * const config_screen_item_names[] = {"speed_field","stat_screens_time","stat_screens","board_logo","sail_logo"};
+const char * const board_logos[] = {"Starboard","Fanatic","JP", "NoveNove", "Mistral","Goya", "Patrik", "Severne", "Tabou", "F2","RRD"};
+const char * const sail_logos[] = {"GASails","Duotone", "Pryde", "NeilPryde","LoftSails","Gunsails","Point7","Simmer","Naish","Severne","NorthSails","RRD"};
+const char * const speed_units[] = {"m/s","km/h","knots"};
+const char * const sample_rates[] = {"1 Hz","5 Hz","10 Hz","16 Hz","20 Hz"};
+const char * const not_set = "not set";
+
+logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
+    assert(config);
+    if(!item) return 0;
+    if(num>=0 && num<lengthof(config_stat_screen_item_names)) {
+        item->name = config_stat_screen_item_names[num];
+        item->pos = num;
+        item->value = (config->stat_screens & (1 << num)) ? 1 : 0;
+        item->desc = item->value ? "on" : "off";
+    }
+    return item;
+}
+
+int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+    assert(config);
+    if(num>=L_CONFIG_STAT_FIELDS) return 0;
+    //const char *name = config_gps_item_names[num];
+    xSemaphoreTake(c_sem_lock, portMAX_DELAY);
+    uint16_t val = config->stat_screens;
+    ESP_LOGI(TAG, "[%s]: %d stat_screens:%hu", __func__, num, val);
+    if(num>=0 && num<lengthof(config_stat_screen_item_names)) {
+        val ^= (1 << num);
+    }
+    ESP_LOGI(TAG, "[%s] set stat_screens:%hu", __func__, val);
+    if(val!=config->stat_screens) {
+        config->stat_screens = val;
+        config_save_json(config, filename, filename_b, ublox_hw);
+    }
+    xSemaphoreGive(c_sem_lock);
+    return 1;
+}
+logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
+    assert(config);
+    if(!item) return 0;
+    item->name = config_screen_item_names[num];
+    item->pos = num;
+    if(!strcmp(item->name, "speed_field")) {
+        item->value = config->speed_field;
+        if(config->speed_field > 0 && config->speed_field <= lengthof(config_speed_field_item_names))
+            item->desc = config_speed_field_item_names[config->speed_field-1];
+        else
+            item->desc = not_set;
+    } else if(!strcmp(item->name, "stat_screens_time")) {
+        item->value = config->stat_screens_time;
+        if(item->value <= 1)
+            item->desc = "1 sec";
+        else if(item->value == 2)
+            item->desc = "2 sec";
+        else if(item->value == 3)
+            item->desc = "3 sec";
+        else if(item->value == 4)
+            item->desc = "4 sec";
+        else if(item->value >= 5)
+            item->desc = "5 sec";
+    } else if(!strcmp(item->name, "stat_screens")) {
+        item->value = config->stat_screens;
+        item->desc = "menu";
+    } else if(!strcmp(item->name, "board_logo")) {
+        item->value = config->board_Logo;
+        if(config->board_Logo > 0 && config->board_Logo <= lengthof(board_logos))
+            item->desc = board_logos[config->board_Logo-1];
+        else
+            item->desc = not_set;
+    } else if(!strcmp(item->name, "sail_logo")) {
+        item->value = config->sail_Logo;
+        if(config->sail_Logo > 0 && config->sail_Logo <= lengthof(sail_logos))
+            item->desc = sail_logos[config->sail_Logo-1];
+        else
+            item->desc = not_set;
+    }
+    return item;
+}
+
+int set_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+    assert(config);
+    if(num>=L_CONFIG_SCREEN_FIELDS) return 0;
+    const char *name = config_screen_item_names[num];
+    xSemaphoreTake(c_sem_lock, portMAX_DELAY);
+    if(!strcmp(name, "speed_field")) {
+        if(config->speed_field == 9) config->speed_field = 1;
+        else config->speed_field++;
+    } else if(!strcmp(name, "stat_screens_time")) {
+        if(config->stat_screens_time == 5) config->stat_screens_time = 4;
+        else if(config->stat_screens_time == 4) config->stat_screens_time = 3;
+        else if(config->stat_screens_time == 3) config->stat_screens_time = 2;
+        else if(config->stat_screens_time == 2) config->stat_screens_time = 1;
+        else config->stat_screens_time = 5;
+    } else if(!strcmp(name, "board_logo")) {
+        if(config->board_Logo >= 11) config->board_Logo = 1;
+        else config->board_Logo++;
+    } else if(!strcmp(name, "sail_logo")) {
+        if(config->sail_Logo >= 12) config->sail_Logo = 1;
+        else config->sail_Logo++;
+    }
+    config_save_json(config, filename, filename_b, ublox_hw);
+    xSemaphoreGive(c_sem_lock);
+    return 1;
+}
 
 logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
@@ -59,27 +167,21 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
             item->desc = "G + E";
         }
         else {
-            item->desc = "not set";
+            item->desc = not_set;
         }
     } else if (!strcmp(item->name, "sample_rate")) {
         item->value = config->sample_rate;
         if(config->sample_rate == 1) {
-            item->desc = "1 Hz";
-        }
-        else if(config->sample_rate == 5) {
-            item->desc = "5 Hz";
-        }
-        else if(config->sample_rate == 10) {
-            item->desc = "10 Hz";
+            item->desc = sample_rates[0];
         }
         else if(config->sample_rate == 16) {
-            item->desc = "16 Hz";
+            item->desc = sample_rates[3];
         }
-        else if(config->sample_rate == 20) {
-            item->desc = "20 Hz";
+        else if(config->sample_rate%5 == 0 && config->sample_rate <= 20) {
+            item->desc = sample_rates[config->sample_rate/5];
         }
         else {
-            item->desc = "not set";
+            item->desc = not_set;
         }
     } else if (!strcmp(item->name, "timezone")) {
         item->value = config->timezone;
@@ -97,15 +199,7 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
         }
     } else if (!strcmp(item->name, "speed_unit")) {
         item->value = config->speed_unit;
-        if(config->speed_unit == 1) {
-            item->desc = "km/h";
-        }
-        else if(config->speed_unit == 2) {
-            item->desc = "knots";
-        }
-        else {
-            item->desc = "m/s";
-        }
+        item->desc = speed_units[config->speed_unit];
     } else if (!strcmp(item->name, "log_txt")) {
         item->value = config->log_txt ? 1 : 0;
         item->desc = config->log_txt ? "on" : "off";
@@ -401,29 +495,29 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
 
-    } else if (!strcmp(var, "stat_screens_persist")) {  // choice for stats field when no speed, here
-        // stat_screen 1, 2 and 3 will be active / for
-        // resave the config
-        if (!value || value->tag != JSON_NUMBER) {
-            goto err;
-        }
-        uint8_t val = value->data.number_;
-        if (force || val != config->stat_screens_persist) {
-            config->stat_screens_persist = val;
-            changed = 1;
-        }
+    // } else if (!strcmp(var, "stat_screens_persist")) {  // choice for stats field when no speed, here
+    //     // stat_screen 1, 2 and 3 will be active / for
+    //     // resave the config
+    //     if (!value || value->tag != JSON_NUMBER) {
+    //         goto err;
+    //     }
+    //     uint8_t val = value->data.number_;
+    //     if (force || val != config->stat_screens_persist) {
+    //         config->stat_screens_persist = val;
+    //         changed = 1;
+    //     }
 
-    } else if (!strcmp(var, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
-        // activated (pull-up high, low = active) / for
-        // resave the config
-        if (!value || value->tag != JSON_NUMBER) {
-            goto err;
-        }
-        uint8_t val = value->data.number_;
-        if (force || val != config->gpio12_screens_persist) {
-            config->gpio12_screens_persist = val;
-            changed = 1;
-        }
+    // } else if (!strcmp(var, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
+    //     // activated (pull-up high, low = active) / for
+    //     // resave the config
+    //     if (!value || value->tag != JSON_NUMBER) {
+    //         goto err;
+    //     }
+    //     uint8_t val = value->data.number_;
+    //     if (force || val != config->gpio12_screens_persist) {
+    //         config->gpio12_screens_persist = val;
+    //         changed = 1;
+    //     }
 
     } else if (!strcmp(var, "board_logo") || !strcmp(var, "board_Logo") || !strcmp(var, "Board_Logo")) {
         if (!value || value->tag != JSON_NUMBER) {
@@ -442,16 +536,6 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         uint8_t val = value->data.number_;
         if (force || val != config->sail_Logo) {
             config->sail_Logo = val;
-            changed = 1;
-        }
-
-    } else if (!strcmp(var, "sleep_off_screen")) {
-        if (!value || value->tag != JSON_NUMBER) {
-            goto err;
-        }
-        uint8_t val = value->data.number_;
-        if (force || val != config->sleep_off_screen) {
-            config->sleep_off_screen = val;
             changed = 1;
         }
 
@@ -607,17 +691,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
     }  // your password
-    else if (!strcmp(var, "ublox_type")) {
-        if (!value || value->tag != JSON_NUMBER) {
-            goto err;
-        }
-        int8_t val = value->data.number_;
-        if(val < 0) val = 0;
-        if (force || val != config->ublox_type) {
-            config->ublox_type = val;
-            changed = 1;
-        }
-    } else {
+    else {
     err:
         ESP_LOGW(TAG, "[%s] error: %s %d", __FUNCTION__, var ? var : "-", value ? value->tag : -1);
         /* if(root) {
@@ -698,7 +772,6 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         changed = SET_CONF(root, "sail_Logo");
     if (changed <= -2)
         changed = SET_CONF(root, "Sail_Logo");
-    changed = SET_CONF(root, "sleep_off_screen");
     changed = SET_CONF(root, "log_txt");
     if (changed <= -2)
         changed = SET_CONF(root, "logTXT");
@@ -727,7 +800,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         changed = SET_CONF(root, "Sleep_info");
     changed = SET_CONF(root, "ssid");
     changed = SET_CONF(root, "password");
-    changed = SET_CONF(root, "ublox_type");
+    // changed = SET_CONF(root, "ublox_type");
 
     if (root)
         json_delete(root);
@@ -829,18 +902,16 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return 10;
         if (orig->stat_screens != config->stat_screens)
             return 11;
-        if (orig->stat_screens_persist != config->stat_screens_persist)
-            return 12;
+        // if (orig->stat_screens_persist != config->stat_screens_persist)
+        //     return 12;
         if (orig->gpio12_screens != config->gpio12_screens)
             return 13;
-        if (orig->gpio12_screens_persist != config->gpio12_screens_persist)
-            return 14;
+        // if (orig->gpio12_screens_persist != config->gpio12_screens_persist)
+        //     return 14;
         if (orig->board_Logo != config->board_Logo)
             return 15;
         if (orig->sail_Logo != config->sail_Logo)
             return 16;
-        if (orig->sleep_off_screen != config->sleep_off_screen)
-            return 17;
         if (orig->log_txt != config->log_txt)
             return 18;
         if (orig->log_ubx != config->log_ubx)
@@ -912,19 +983,31 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     if (!strcmp(name, "speed_unit")) {  // speed units, 0 = m/s 1 = km/h, 2 = knots
         strbf_putn(&lsb, config->speed_unit);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"m/s, km/h or knots\",\"type\":\"int\",\"values\":[");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"m/s\"},");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"km/h\"},");
-            strbf_puts(&lsb, "{\"value\":2,\"title\":\"knots\"}");
+            strbf_puts(&lsb, ",\"info\":\"Speed display units\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j=(lengthof(speed_units)); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, speed_units[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "sample_rate")) {  // gps_rate in Hz, 1, 5 or 10Hz !!!
         strbf_putn(&lsb, config->sample_rate);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"gps_rate in Hz\",\"type\":\"int\",\"values\":[{\"value\":1,\"title\":\"1Hz\"},{\"value\":5,\"title\":\"5Hz\"},{\"value\":10,\"title\":\"10Hz\"}");
-            if (ublox_hw >= UBX_TYPE_M9) {
-                strbf_puts(&lsb, ",{\"value\":16,\"title\":\"16Hz\"}");
-                strbf_puts(&lsb, ",{\"value\":20,\"title\":\"20Hz\"}");
+            strbf_puts(&lsb, ",\"info\":\"gps_rate in Hz\",\"type\":\"int\"");
+            strbf_puts(&lsb,",\"values\":[");
+            for(uint8_t i = 0, j = 5, k; i < j; i++) {
+                k = (i==2) ? (i+1)*5+1 : (i > 0) ? (i+1)*5 : 1;
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, k);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, sample_rates[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
             }
             strbf_puts(&lsb, "]");
             strbf_puts(&lsb, ",\"ext\":\"Hz\"");
@@ -954,7 +1037,17 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     } else if (!strcmp(name, "speed_field")) {  // choice for first field in speed screen !!!
         strbf_putn(&lsb, config->speed_field);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"choice for first field in speed screen !!!\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"info\":\"choice for first field in speed screen\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = lengthof(config_speed_field_item_names); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i+1);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, config_speed_field_item_names[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
         }
     }
 
@@ -976,46 +1069,52 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     } else if (!strcmp(name, "timezone")) {  // choice for timedifference in hours with UTC, for Belgium 1 or 2 (summertime)
         strbf_putd(&lsb, config->timezone, 1, 0);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"timezone: The local time difference in hours with UTC (can be fractional/negative!) <a href='https://en.wikipedia.org/wiki/List_of_UTC_offsets' target='_blank'>Wikipedia</a>\",\"type\":\"float\",\"ext\":\"h\",");
-            strbf_puts(&lsb, "\"values\":[");
-            strbf_puts(&lsb, "{\"value\":-12,\"title\":\"GMT-12\"},");
-            strbf_puts(&lsb, "{\"value\":-11,\"title\":\"GMT-11\"},");
-            strbf_puts(&lsb, "{\"value\":-10,\"title\":\"GMT-10\"},");
-            strbf_puts(&lsb, "{\"value\":-9,\"title\":\"GMT-9\"},");
-            strbf_puts(&lsb, "{\"value\":-8,\"title\":\"GMT-8\"},");
-            strbf_puts(&lsb, "{\"value\":-7,\"title\":\"GMT-7\"},");
-            strbf_puts(&lsb, "{\"value\":-6,\"title\":\"GMT-6\"},");
-            strbf_puts(&lsb, "{\"value\":-5,\"title\":\"GMT-5\"},");
-            strbf_puts(&lsb, "{\"value\":-4,\"title\":\"GMT-4\"},");
-            strbf_puts(&lsb, "{\"value\":-3,\"title\":\"GMT-3\"},");
-            strbf_puts(&lsb, "{\"value\":-2,\"title\":\"GMT-2\"},");
-            strbf_puts(&lsb, "{\"value\":-1,\"title\":\"GMT-1\"},");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"GMT\"},");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"GMT+1\"},");
-            strbf_puts(&lsb, "{\"value\":2,\"title\":\"GMT+2\"},");
-            strbf_puts(&lsb, "{\"value\":3,\"title\":\"GMT+3\"},");
-            strbf_puts(&lsb, "{\"value\":4,\"title\":\"GMT+4\"},");
-            strbf_puts(&lsb, "{\"value\":5,\"title\":\"GMT+5\"},");
-            strbf_puts(&lsb, "{\"value\":6,\"title\":\"GMT+6\"},");
-            strbf_puts(&lsb, "{\"value\":7,\"title\":\"GMT+7\"},");
-            strbf_puts(&lsb, "{\"value\":8,\"title\":\"GMT+8\"},");
-            strbf_puts(&lsb, "{\"value\":9,\"title\":\"GMT+9\"},");
-            strbf_puts(&lsb, "{\"value\":10,\"title\":\"GMT+10\"},");
-            strbf_puts(&lsb, "{\"value\":11,\"title\":\"GMT+11\"},");
-            strbf_puts(&lsb, "{\"value\":12,\"title\":\"GMT+12\"},");
-            strbf_puts(&lsb, "{\"value\":13,\"title\":\"GMT+13\"}");
+            strbf_puts(&lsb, ",\"info\":\"timezone: The local time difference in hours with UTC (can be fractional/negative!) <a href='https://en.wikipedia.org/wiki/List_of_UTC_offsets' target='_blank'>Wikipedia</a>\",\"type\":\"float\",\"ext\":\"h\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(int8_t i = 0, j=4; i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, ",\"title\":\"GMT");
+                if (i > 0) strbf_putc(&lsb, '+');
+                else if (i < 0) strbf_putc(&lsb, '-');
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
             strbf_puts(&lsb, "]");
         }                                        // 2575
     } else if (!strcmp(name, "stat_screens")||!strcmp(name, "Stat_screens")) {  // choice for stats field when no speed, here stat_screen
         // 1, 2 and 3 will be active
         strbf_putn(&lsb, config->stat_screens);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : every digit shows the according stat_screen after each other\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : activate / deactivate screens to show.\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"toggles\":[");
+            for(uint8_t i= 0, j = 1, k = lengthof(config_stat_screen_item_names); i < k; i++, j <<= 1) {
+                strbf_puts(&lsb, "{\"pos\":");
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, config_stat_screen_item_names[i]);
+                strbf_puts(&lsb, "\",\"value\":");
+                strbf_putn(&lsb, j);
+                strbf_puts(&lsb, "}");
+                if(i < k-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "stat_screens_time")||!strcmp(name, "Stat_screens_time")) {  // time between switching stat_screens
         strbf_putn(&lsb, config->stat_screens_time);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"The time between toggle the different stat screens\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = 5; i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i+1);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_putn(&lsb, i+1);
+                strbf_puts(&lsb, " sec\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "gpio12_screens")||!strcmp(name, "GPIO12_screens")) {  // choice for stats field when gpio12 is activated
         // (pull-up high, low = active)
@@ -1023,34 +1122,49 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"GPIO12_screens choice : Every digit shows the according GPIO_screen after each push. Screen 4 = s10 runs, screen 5 = alfa's.\",\"type\":\"int\"");
         }
-    } else if (!strcmp(name, "stat_screens_persist")) {  // choice for stats field when no speed, here
-        // stat_screen 1, 2 and 3 will be active / for
-        // resave the config
-        strbf_putn(&lsb, config->stat_screens_persist);
-        if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"Persist stat screens\",\"type\":\"int\"");
-        }
-    } else if (!strcmp(name, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
-        // activated (pull-up high, low = active) / for
-        // resave the config
-        strbf_putn(&lsb, config->gpio12_screens_persist);
-        if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
-        }
+    // } else if (!strcmp(name, "stat_screens_persist")) {  // choice for stats field when no speed, here
+    //     // stat_screen 1, 2 and 3 will be active / for
+    //     // resave the config
+    //     strbf_putn(&lsb, config->stat_screens_persist);
+    //     if (mode) {
+    //         strbf_puts(&lsb, ",\"info\":\"Persist stat screens\",\"type\":\"int\"");
+    //     }
+    // } else if (!strcmp(name, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
+    //     // activated (pull-up high, low = active) / for
+    //     // resave the config
+    //     strbf_putn(&lsb, config->gpio12_screens_persist);
+    //     if (mode) {
+    //         strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
+    //     }
     } else if (!strcmp(name, "board_logo")||!strcmp(name, "board_logo")||!strcmp(name, "Board_Logo")) {
         strbf_putn(&lsb, config->board_Logo);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"Board_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"info\":\"Board_Logo\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = lengthof(board_logos); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i+1);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, board_logos[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "sail_logo")||!strcmp(name, "sail_logo")||!strcmp(name, "Sail_Logo")) {
         strbf_putn(&lsb, config->sail_Logo);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"Sail_Logo: from 1 - 20. See the info on <a href='https://www.seabreeze.com.au/img/photos/windsurfing/19565287.jpg' target='_blank'>Seabreeze</a>, bigger than are 10 different single logos\",\"type\":\"int\"");
-        }
-    } else if (!strcmp(name, "sleep_off_screen")) {
-        strbf_putn(&lsb, config->sleep_off_screen);
-        if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"Choice for switch_off (first digit 0 or 1) and sleep_screen (second digit 0 or 1):\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"info\":\"Sail Logo\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = lengthof(sail_logos); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i+1);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, sail_logos[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "stat_speed")) {  // max speed in m/s for showing Stat screens
         strbf_putn(&lsb, config->stat_speed);
@@ -1143,21 +1257,6 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"info\":\"password: the password of the wlan where the esp-logger should connect to\",\"type\":\"str\"");
         }
     }  // your password
-    else if (!strcmp(name, "ublox_type")) {
-        strbf_putn(&lsb, config->ublox_type);
-        if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"ublox_type\",\"type\":\"int\",");
-            strbf_puts(&lsb, "\"values\":[");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"M8 9600Bd\"},");
-            strbf_puts(&lsb, "{\"value\":3,\"title\":\"M8 38400Bd\"},");
-            strbf_puts(&lsb, "{\"value\":5,\"title\":\"M9 9600Bd\"},");
-            strbf_puts(&lsb, "{\"value\":6,\"title\":\"M9 38400Bd\"},");
-            strbf_puts(&lsb, "{\"value\":2,\"title\":\"M10 9600Bd\"},");
-            strbf_puts(&lsb, "{\"value\":4,\"title\":\"M10 38400Bd\"},");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"Autoselect\"}");
-            strbf_puts(&lsb, "]");
-        }
-    }
     if (mode)
         strbf_puts(&lsb, "}");
     *len = lsb.cur - lsb.start;
@@ -1197,7 +1296,6 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
     //     CONF_GET("gpio12_screens");
     //     CONF_GET("board_Logo");
     //     CONF_GET("sail_Logo");
-    //     CONF_GET("sleep_off_screen");
     //     CONF_GET("log_txt");
     //     CONF_GET("log_ubx");
     //     CONF_GET("log_ubx_nav_sat");
@@ -1249,7 +1347,6 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("gpio12_screens");
     CONF_GET("board_logo");
     CONF_GET("sail_logo");
-    CONF_GET("sleep_off_screen");
     CONF_GET("log_txt");
     CONF_GET("log_ubx");
     CONF_GET("log_ubx_nav_sat");
@@ -1263,7 +1360,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("sleep_info");
     CONF_GET("ssid");
     CONF_GET("password");
-    CONF_GETC("ublox_type");
+    // CONF_GETC("ublox_type");
 
     strbf_puts(sb, "\n}\n");
     return strbf_finish(sb);

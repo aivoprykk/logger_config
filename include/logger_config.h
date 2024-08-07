@@ -11,14 +11,15 @@ extern "C" {
 #endif
 
 extern const char *config_item_names;
+extern const char * const config_speed_field_item_names[];
+extern const char * const config_stat_screen_item_names[];
+extern const char * const config_screen_item_names[];
 extern const char * const config_gps_item_names[];
-
-#define L_CONFIG_GPS_FIELDS 10
 
 typedef struct logger_config_item_s {
     const char * name;
     int pos;
-    uint8_t value;
+    uint32_t value;
     const char *desc;
 } logger_config_item_t;
 
@@ -34,6 +35,42 @@ typedef struct logger_config_gps_s {
     uint8_t log_ubx_nav_sat;  // log nav sat msg to .ubx
     uint8_t dynamic_model;    // choice for dynamic model "Sea",if 0 model "portable" is used !!
 } logger_config_gps_t;
+#define L_CONFIG_GPS_FIELDS sizeof(struct logger_config_gps_s)
+
+typedef struct logger_config_speed_field_s {
+    uint8_t dynamic;
+    uint8_t stat_10_sec;
+    uint8_t stat_alpha;
+    uint8_t stat_1852_m;
+    uint8_t stat_dist_500m;
+    uint8_t stat_max_2s_10s;
+    uint8_t stat_half_hour;
+    uint8_t stat_1_hour;
+    uint8_t stat_1_hour_dynamic;
+} logger_config_speed_field_t;
+#define L_CONFIG_SPEED_FIELDS sizeof(struct logger_config_speed_field_s)
+
+typedef struct logger_config_stat_screens_s {
+    uint8_t stat_10_sec;
+    uint8_t stat_2_sec;
+    uint8_t stat_250_m;
+    uint8_t stat_500_m;
+    uint8_t stat_1852_m;
+    uint8_t stat_alfa;
+    uint8_t stat_avg_10sec;
+    uint8_t stat_stat1;
+    uint8_t stat_avg_a500;
+} logger_config_stat_screens_t;
+#define L_CONFIG_STAT_FIELDS sizeof(struct logger_config_stat_screens_s)
+
+typedef struct logger_config_screen_s {
+    uint8_t speed_field;             // choice for first field in speed screen !!!
+    uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
+    uint8_t stat_screens_time;       // time between switching stat_screens
+    uint8_t board_logo;
+    uint8_t sail_logo;
+} logger_config_screen_t;
+#define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
 
 typedef struct logger_config_s {
     bool log_txt;          // switchinf off .txt files
@@ -49,19 +86,19 @@ typedef struct logger_config_s {
     uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
     uint8_t dynamic_model;           // choice for dynamic model "Sea",if 0 model "portable" is used !!
     uint8_t stat_screens_time;       // time between switching stat_screens
-    uint32_t stat_screens_persist;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active for resave the config
-    uint32_t gpio12_screens_persist;  // choice for stats field when gpio12 is activated (pull-up high, low = active) for resave the config
+    //uint32_t stat_screens_persist;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active for resave the config
+    //uint32_t gpio12_screens_persist;  // choice for stats field when gpio12 is activated (pull-up high, low = active) for resave the config
     uint8_t board_Logo;
     uint8_t sail_Logo;
-    uint8_t sleep_off_screen;
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
     uint8_t file_date_time;   // type of filenaming, with MAC adress or datetime
     uint8_t config_fail;
-    int8_t  ublox_type;
+    // int8_t  ublox_type;
     uint8_t speed_field_count;
+    uint8_t screen_rotation;
 
-    uint32_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
-    uint32_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
+    uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
+    uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
     uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
     uint16_t archive_days;    // how many days files will be moved to the "Archive" dir
 
@@ -88,18 +125,15 @@ typedef struct logger_config_s {
     .speed_large_font = 1, \
     .dynamic_model = 0, \
     .stat_screens_time = 3, \
-    .stat_screens_persist = 12345678U, \
-    .gpio12_screens_persist = 12345678U, \
     .board_Logo = 1, \
     .sail_Logo = 1, \
-    .sleep_off_screen = 11, \
     .stat_speed = 1, \
     .file_date_time = 2, \
     .config_fail = 0, \
-    .ublox_type = 0, \
-    .speed_field_count =9, \
-    .stat_screens = 123456U, \
-    .gpio12_screens = 123456U, \
+    .speed_field_count = 9, \
+    .screen_rotation = 0, \
+    .stat_screens = 255U, \
+    .gpio12_screens = 255U, \
     .bar_length = 1852, \
     .archive_days = 30, \
     .speed_unit = 1, \
@@ -249,7 +283,10 @@ int config_save_var_b(struct logger_config_s *config, const char *filename, cons
 
 logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
 int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
-
+logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
+int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
+logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
+int set_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
 #ifdef __cplusplus
 }
 #endif
