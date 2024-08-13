@@ -72,6 +72,11 @@ typedef struct logger_config_screen_s {
 } logger_config_screen_t;
 #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
 
+typedef struct logger_config_wifi_sta_s {
+    char ssid[32];        // your SSID
+    char password[32];    // your password
+} logger_config_wifi_sta_t;
+
 typedef struct logger_config_s {
     bool log_txt;          // switchinf off .txt files
     bool log_ubx;          // log to .ubx
@@ -93,9 +98,10 @@ typedef struct logger_config_s {
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
     uint8_t file_date_time;   // type of filenaming, with MAC adress or datetime
     uint8_t config_fail;
-    // int8_t  ublox_type;
+    int8_t  screen_move_offset;
     uint8_t speed_field_count;
     uint8_t screen_rotation;
+    bool screen_no_auto_refresh;
 
     uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
     uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
@@ -108,8 +114,9 @@ typedef struct logger_config_s {
  
     char ubx_file[32];    // your preferred filename
     char sleep_info[32];  // your preferred sleep text
-    char ssid[32];        // your SSID
-    char password[32];    // your password
+
+    struct logger_config_wifi_sta_s wifi_sta[4];
+    char hostname[32];    // your hostname
 } logger_config_t;
 
 #define LOGGER_CONFIG_DEFAULTS() { \
@@ -130,8 +137,10 @@ typedef struct logger_config_s {
     .stat_speed = 1, \
     .file_date_time = 2, \
     .config_fail = 0, \
+    .screen_move_offset = 1, \
     .speed_field_count = 9, \
     .screen_rotation = 0, \
+    .screen_no_auto_refresh = false, \
     .stat_screens = 255U, \
     .gpio12_screens = 255U, \
     .bar_length = 1852, \
@@ -140,8 +149,13 @@ typedef struct logger_config_s {
     .timezone = 2, \
     .ubx_file = "gps", \
     .sleep_info = "ESP GPS", \
-    .ssid = "", \
-    .password = "" \
+    .hostname = "esp-logger", \
+    .wifi_sta = { \
+        { .ssid = "ssid1", .password = "password1" }, \
+        { {0}, {0} }, \
+        { {0}, {0} }, \
+        { {0}, {0} }, \
+    }, \
 }
 
 struct strbf_s;

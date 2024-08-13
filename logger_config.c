@@ -25,15 +25,15 @@ SemaphoreHandle_t c_sem_lock = 0;
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 
 #ifdef USE_CUSTOM_CALIBRATION_VAL
-cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
 #else
-const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info";
+const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
 #endif
 const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
 const char * const config_gps_item_names[] = {"gnss", "sample_rate", "timezone", "speed_unit", "log_txt", "log_ubx", "log_sbp", "log_gpy", "log_gpx", "log_ubx_nav_sat", "dynamic_model"};
 const char * const config_speed_field_item_names[] = {"dynamic","stat_10_sec","stat_alpha","stat_1852_m","stat_dist_500m","stat_max_2s_10s","stat_half_hour","stat_1_hour", "stat_1h_dynamic"};
 const char * const config_stat_screen_item_names[] = {"stat_10_sec","stat_2_sec","stat_250_m","stat_500_m","stat_1852_m","stat_alfa","stat_avg_10sec","stat_stat1","stat_avg_a500"};
-const char * const config_screen_item_names[] = {"speed_field","stat_screens_time","stat_screens","board_logo","sail_logo"};
+const char * const config_screen_item_names[] = {"speed_field","stat_screens_time","stat_screens","screen_move_offset","board_logo","sail_logo"};
 const char * const board_logos[] = {"Starboard","Fanatic","JP", "NoveNove", "Mistral","Goya", "Patrik", "Severne", "Tabou", "F2","RRD"};
 const char * const sail_logos[] = {"GASails","Duotone", "Pryde", "NeilPryde","LoftSails","Gunsails","Point7","Simmer","Naish","Severne","NorthSails","RRD"};
 const char * const speed_units[] = {"m/s","km/h","knots"};
@@ -96,6 +96,9 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
     } else if(!strcmp(item->name, "stat_screens")) {
         item->value = config->stat_screens;
         item->desc = "menu";
+    } else if(!strcmp(item->name, "screen_move_offset")) {
+        item->value = config->screen_move_offset ? 1 : 0;
+        item->desc = config->screen_move_offset ? "on" : "off";
     } else if(!strcmp(item->name, "board_logo")) {
         item->value = config->board_Logo;
         if(config->board_Logo > 0 && config->board_Logo <= lengthof(board_logos))
@@ -126,6 +129,8 @@ int set_screen_cfg_item(logger_config_t * config, int num, const char * filename
         else if(config->stat_screens_time == 3) config->stat_screens_time = 2;
         else if(config->stat_screens_time == 2) config->stat_screens_time = 1;
         else config->stat_screens_time = 5;
+    } else if (!strcmp(name, "screen_move_offset")) {
+        config->screen_move_offset = config->screen_move_offset ? 0 : 1;
     } else if(!strcmp(name, "board_logo")) {
         if(config->board_Logo >= 11) config->board_Logo = 1;
         else config->board_Logo++;
@@ -519,6 +524,18 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
     //         changed = 1;
     //     }
 
+    } else if (!strcmp(var, "screen_move_offset")) {
+        if (!value || value->tag != JSON_NUMBER) {
+            goto err;
+        }
+        uint8_t val = value->data.number_;
+        if (force || val != config->screen_move_offset) {
+            config->screen_move_offset = val;
+            changed = 1;
+        }
+
+    }  // log to .gpx
+    else if (!strcmp(var, "file_date_time")) {
     } else if (!strcmp(var, "board_logo") || !strcmp(var, "board_Logo") || !strcmp(var, "Board_Logo")) {
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
@@ -667,30 +684,52 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
     }  // your preferred sleep text
-    else if (!strcmp(var, "ssid")) {
+    else if (strstr(var, "ssid")==var) {
         if (!value || value->tag != JSON_STRING) {
             goto err;
         }
         const char *val = value->data.string_;
-        if (force || strcmp(val, config->ssid)) {
+        uint8_t num = 0;
+        if (var[4] == 49) num = 1;
+        else if(var[4] == 50) num = 2;
+        else if(var[4] == 51) num = 3;
+        else if(var[4] == 52) num = 4;
+        if (force || strcmp(val, config->wifi_sta[num].ssid)) {
             size_t len = strlen(val);
-            memcpy(config->ssid, val, len);
-            config->ssid[len] = 0;
+            memcpy(config->wifi_sta[num].ssid, val, len);
+            config->wifi_sta[num].ssid[len] = 0;
             changed = 1;
         }
     }  // your SSID
-    else if (!strcmp(var, "password")) {
+    else if (strstr(var, "password")==var) {
         if (!value || value->tag != JSON_STRING) {
             goto err;
         }
         const char *val = value->data.string_;
-        if (force || strcmp(val, config->password)) {
+        uint8_t num = 0;
+        if (var[8] == 49) num = 1;
+        else if(var[8] == 50) num = 2;
+        else if(var[8] == 51) num = 3;
+        else if(var[8] == 52) num = 4;
+        if (force || strcmp(val, config->wifi_sta[num].password)) {
             size_t len = strlen(val);
-            memcpy(config->password, val, len);
-            config->password[len] = 0;
+            memcpy(config->wifi_sta[num].password, val, len);
+            config->wifi_sta[num].password[len] = 0;
             changed = 1;
         }
     }  // your password
+    else if (!strcmp(var, "hostname")) {
+        if (!value || value->tag != JSON_STRING) {
+            goto err;
+        }
+        const char *val = value->data.string_;
+        if (force || strcmp(val, config->hostname)) {
+            size_t len = strlen(val);
+            memcpy(config->hostname, val, len);
+            config->hostname[len] = 0;
+            changed = 1;
+        }
+    }  // your hostname
     else {
     err:
         ESP_LOGW(TAG, "[%s] error: %s %d", __FUNCTION__, var ? var : "-", value ? value->tag : -1);
@@ -762,6 +801,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
     changed = SET_CONF(root, "gpio12_screens");
     if (changed <= -2)
         changed = SET_CONF(root, "GPIO12_screens");
+    changed = SET_CONF(root, "screen_move_offset");
     changed = SET_CONF(root, "board_logo");
     if (changed <= -2)
         changed = SET_CONF(root, "board_Logo");
@@ -800,6 +840,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         changed = SET_CONF(root, "Sleep_info");
     changed = SET_CONF(root, "ssid");
     changed = SET_CONF(root, "password");
+    changed = SET_CONF(root, "hostname");
     // changed = SET_CONF(root, "ublox_type");
 
     if (root)
@@ -811,8 +852,8 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         WLOG(TAG, "sample_rate: %d", config->sample_rate);
         WLOG(TAG, "log_sbp:     %c", config->log_sbp);
         WLOG(TAG, "log_ubx:     %c", config->log_ubx);
-        WLOG(TAG, "ssid:        %s", config->ssid);
-        WLOG(TAG, "password:    %s", config->password);
+        WLOG(TAG, "ssid:        %s", config->wifi_sta[0].ssid);
+        WLOG(TAG, "password:    %s", config->wifi_sta[0].password);
         WLOG(TAG, "sail_logo:   %d", config->sail_Logo);
     }
     return ret;
@@ -906,8 +947,8 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
         //     return 12;
         if (orig->gpio12_screens != config->gpio12_screens)
             return 13;
-        // if (orig->gpio12_screens_persist != config->gpio12_screens_persist)
-        //     return 14;
+        if (orig->screen_move_offset != config->screen_move_offset)
+            return 14;
         if (orig->board_Logo != config->board_Logo)
             return 15;
         if (orig->sail_Logo != config->sail_Logo)
@@ -932,12 +973,14 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return 26;
         if (strcmp(config->sleep_info, orig->sleep_info))
             return 27;
-        if (strcmp(config->ssid, orig->ssid))
+        if (strcmp(config->wifi_sta[0].ssid, orig->wifi_sta[0].ssid))
             return 28;
-        if (strcmp(config->password, orig->password))
+        if (strcmp(config->wifi_sta[0].password, orig->wifi_sta[0].password))
             return 29;
         if (orig->speed_field_count != config->speed_field_count)
             return 30;
+        if (strcmp(config->hostname, orig->hostname))
+            return 32;
     }
     return 0;
 }
@@ -1136,6 +1179,11 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     //     if (mode) {
     //         strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
     //     }
+    } else if (!strcmp(name, "screen_move_offset")) {
+        strbf_putn(&lsb, config->screen_move_offset);
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"move epd sceen content to pervent panel burn\",\"type\":\"bool\"");
+        }
     } else if (!strcmp(name, "board_logo")||!strcmp(name, "board_logo")||!strcmp(name, "Board_Logo")) {
         strbf_putn(&lsb, config->board_Logo);
         if (mode) {
@@ -1241,22 +1289,40 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"info\":\"your preferred sleep text\",\"type\":\"str\"");
         }
     }  // your preferred sleep text
-    else if (!strcmp(name, "ssid")) {
+    else if (strstr(name, "ssid")==name) {
+        uint8_t num = 0;
+        if (name[4] == 49) num = 1;
+        else if(name[4] == 50) num = 2;
+        else if(name[4] == 51) num = 3;
+        else if(name[4] == 52) num = 4;
         strbf_puts(&lsb, "\"");
-        strbf_puts(&lsb, config->ssid);
+        strbf_puts(&lsb, config->wifi_sta[num].ssid);
         strbf_puts(&lsb, "\"");
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"ssid: the name of the wlan where the esp-logger should connect to\",\"type\":\"str\"");
+            strbf_puts(&lsb, ",\"info\":\"wifi ssid\",\"type\":\"str\"");
         }
     }  // your SSID
-    else if (!strcmp(name, "password")) {
+    else if (strstr(name, "password")==name) {
+        uint8_t num = 0;
+        if (name[8] == 49) num = 1;
+        else if(name[8] == 50) num = 2;
+        else if(name[8] == 51) num = 3;
+        else if(name[8] == 52) num = 4;
         strbf_puts(&lsb, "\"");
-        strbf_puts(&lsb, config->password);
+        strbf_puts(&lsb, config->wifi_sta[num].password);
         strbf_puts(&lsb, "\"");
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"password: the password of the wlan where the esp-logger should connect to\",\"type\":\"str\"");
+            strbf_puts(&lsb, ",\"info\":\"wifi network password\",\"type\":\"str\"");
         }
     }  // your password
+    else if (!strcmp(name, "hostname")) {
+        strbf_puts(&lsb, "\"");
+        strbf_puts(&lsb, config->hostname);
+        strbf_puts(&lsb, "\"");
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"hostname: the hostname of the device for present itself in the network\",\"type\":\"str\"");
+        }
+    }  // your hostname
     if (mode)
         strbf_puts(&lsb, "}");
     *len = lsb.cur - lsb.start;
@@ -1333,7 +1399,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     strbf_puts(sb, ",\n")
 
     strbf_puts(sb, "{\n");
-    //CONF_GET("cal_bat");
+    CONF_GET("hostname");
     CONF_GET("speed_unit");
     CONF_GET("sample_rate");
     CONF_GET("gnss");
@@ -1345,6 +1411,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("stat_speed");
     CONF_GET("archive_days");
     CONF_GET("gpio12_screens");
+    CONF_GET("screen_move_offset");
     CONF_GET("board_logo");
     CONF_GET("sail_logo");
     CONF_GET("log_txt");
@@ -1357,11 +1424,17 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("dynamic_model");
     CONF_GET("timezone");
     CONF_GET("ubx_file");
-    CONF_GET("sleep_info");
-    CONF_GET("ssid");
-    CONF_GET("password");
-    // CONF_GETC("ublox_type");
-
+    for(uint8_t i=0,j=5; i<j; i++) {
+        if(i>0 && config->wifi_sta[i].ssid[0] == 0) break;
+        char ssid[12]={0}, password[12]={0};
+        memcpy(&ssid[0], "ssid", 4);
+        memcpy(&password[0], "password", 8);
+        if(i>0) ssid[4] = password[8] = i+48;
+        CONF_GET(&ssid[0]);
+        CONF_GET(&password[0]);
+    }
+    CONF_GETC("sleep_info");
+    
     strbf_puts(sb, "\n}\n");
     return strbf_finish(sb);
 #undef CONF_GETC
