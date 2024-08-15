@@ -27,7 +27,7 @@ ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 #ifdef USE_CUSTOM_CALIBRATION_VAL
 cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
 #else
-const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
+const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,ssid1,password1,ssid2,password2,ssid3,password3,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
 #endif
 const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
 const char * const config_gps_item_names[] = {"gnss", "sample_rate", "timezone", "speed_unit", "log_txt", "log_ubx", "log_sbp", "log_gpy", "log_gpx", "log_ubx_nav_sat", "dynamic_model"};
@@ -341,7 +341,7 @@ JsonNode *config_parse(const char *json) {
 }
 
 int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t force) {
-    ILOG(TAG,"[%s]",__func__);
+    ILOG(TAG,"[%s] name: %s",__func__, str);
     if (!root) {
         return -1;
     }
@@ -838,24 +838,18 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
     changed = SET_CONF(root, "sleep_info");
     if (changed <= -2)
         changed = SET_CONF(root, "Sleep_info");
-    changed = SET_CONF(root, "ssid");
-    changed = SET_CONF(root, "password");
+    for(uint8_t i=0,j=L_CONFIG_SSID_MAX; i<j; i++) {
+        char ssid[12]={0}, password[12]={0};
+        memcpy(&ssid[0], "ssid", 4);
+        memcpy(&password[0], "password", 8);
+        if(i>0) ssid[4] = password[8] = i+48;
+        SET_CONF(root, &ssid[0]);
+        SET_CONF(root, &password[0]);
+    }
     changed = SET_CONF(root, "hostname");
-    // changed = SET_CONF(root, "ublox_type");
-
+    
     if (root)
         json_delete(root);
-
-    if (ret == ESP_FAIL) {
-        //ESP_LOGW(TAG, "cal_bat:     %.2f", config->cal_bat);
-        WLOG(TAG, "speed_unit:   %hhu", config->speed_unit);
-        WLOG(TAG, "sample_rate: %d", config->sample_rate);
-        WLOG(TAG, "log_sbp:     %c", config->log_sbp);
-        WLOG(TAG, "log_ubx:     %c", config->log_ubx);
-        WLOG(TAG, "ssid:        %s", config->wifi_sta[0].ssid);
-        WLOG(TAG, "password:    %s", config->wifi_sta[0].password);
-        WLOG(TAG, "sail_logo:   %d", config->sail_Logo);
-    }
     return ret;
 #undef SET_CONF
 }
@@ -973,14 +967,16 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return 26;
         if (strcmp(config->sleep_info, orig->sleep_info))
             return 27;
-        if (strcmp(config->wifi_sta[0].ssid, orig->wifi_sta[0].ssid))
-            return 28;
-        if (strcmp(config->wifi_sta[0].password, orig->wifi_sta[0].password))
-            return 29;
         if (orig->speed_field_count != config->speed_field_count)
             return 30;
         if (strcmp(config->hostname, orig->hostname))
             return 32;
+        for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=33; i<j; i++,k++) {
+            if (strcmp(config->wifi_sta[i].ssid, orig->wifi_sta[i].ssid))
+                return k;
+            if (strcmp(config->wifi_sta[i].password, orig->wifi_sta[i].password))
+                return k+5;
+        }
     }
     return 0;
 }
@@ -1346,37 +1342,6 @@ char *config_get_json(logger_config_t *config, strbf_t *sb, const char *str, uin
     strbf_putc(sb, ',')
     if (str) {
         CONF_GETC(str);
-    // } else {
-    //     strbf_puts(sb, "[");
-    //     //CONF_GET("cal_bat");
-    //     CONF_GET("speed_unit");
-    //     CONF_GET("sample_rate");
-    //     CONF_GET("gnss");
-    //     CONF_GET("speed_field");
-    //     CONF_GET("speed_large_font");
-    //     CONF_GET("bar_length");
-    //     CONF_GET("stat_screens");
-    //     CONF_GET("stat_screens_time");
-    //     CONF_GET("stat_speed");
-    //     CONF_GET("archive_days");
-    //     CONF_GET("gpio12_screens");
-    //     CONF_GET("board_Logo");
-    //     CONF_GET("sail_Logo");
-    //     CONF_GET("log_txt");
-    //     CONF_GET("log_ubx");
-    //     CONF_GET("log_ubx_nav_sat");
-    //     CONF_GET("log_sbp");
-    //     CONF_GET("log_gpy");
-    //     CONF_GET("log_gpx");
-    //     CONF_GET("file_date_time");
-    //     CONF_GET("dynamic_model");
-    //     CONF_GET("timezone");
-    //     CONF_GET("ubx_file");
-    //     CONF_GET("sleep_info");
-    //     CONF_GET("ssid");
-    //     CONF_GET("password");
-    //     CONF_GETC("ublox_type");
-    //     strbf_puts(sb, "]\n");
     }
     IMEAS_END(TAG, "[%s] took %llu us", __FUNCTION__);
     return strbf_finish(sb);  // str size 6444
@@ -1424,7 +1389,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
     CONF_GET("dynamic_model");
     CONF_GET("timezone");
     CONF_GET("ubx_file");
-    for(uint8_t i=0,j=5; i<j; i++) {
+    for(uint8_t i=0,j=L_CONFIG_SSID_MAX; i<j; i++) {
         if(i>0 && config->wifi_sta[i].ssid[0] == 0) break;
         char ssid[12]={0}, password[12]={0};
         memcpy(&ssid[0], "ssid", 4);

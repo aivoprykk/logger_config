@@ -72,6 +72,8 @@ typedef struct logger_config_screen_s {
 } logger_config_screen_t;
 #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
 
+#define L_CONFIG_SSID_MAX 4
+
 typedef struct logger_config_wifi_sta_s {
     char ssid[32];        // your SSID
     char password[32];    // your password
@@ -115,7 +117,7 @@ typedef struct logger_config_s {
     char ubx_file[32];    // your preferred filename
     char sleep_info[32];  // your preferred sleep text
 
-    struct logger_config_wifi_sta_s wifi_sta[4];
+    struct logger_config_wifi_sta_s wifi_sta[L_CONFIG_SSID_MAX]; // your SSID and password
     char hostname[32];    // your hostname
 } logger_config_t;
 
