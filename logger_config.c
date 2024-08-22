@@ -24,29 +24,43 @@ SemaphoreHandle_t c_sem_lock = 0;
 
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 
-#ifdef USE_CUSTOM_CALIBRATION_VAL
-cosnt char *config_item_names = "cal_bat,speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
-#else
-const char *config_item_names = "speed_unit,sample_rate,gnss,speed_field,speed_large_font,bar_length,stat_speed,archive_days,file_date_time,dynamic_model,timezone,ssid,password,ssid1,password1,ssid2,password2,ssid3,password3,stat_screens,stat_screens_time,gpio12_screens,screen_move_offset,board_logo,sail_logo,log_txt,log_ubx,log_ubx_nav_sat,log_sbp,log_gpy,log_gpx,ubx_file,sleep_info,hostname";
-#endif
-const char *config_item_names_compat = "Stat_screens,Stat_screens_time,GPIO12_screens,Board_Logo,board_Logo,sail_Logo,Sail_Logo,logTXT,logSBP,logUBX,logUBX_nav_sat,logGPY,logGPX,UBXfile,Sleep_info";
-const char * const config_gps_item_names[] = {"gnss", "sample_rate", "timezone", "speed_unit", "log_txt", "log_ubx", "log_sbp", "log_gpy", "log_gpx", "log_ubx_nav_sat", "dynamic_model"};
-const char * const config_speed_field_item_names[] = {"dynamic","stat_10_sec","stat_alpha","stat_1852_m","stat_dist_500m","stat_max_2s_10s","stat_half_hour","stat_1_hour", "stat_1h_dynamic"};
-const char * const config_stat_screen_item_names[] = {"stat_10_sec","stat_2_sec","stat_250_m","stat_500_m","stat_1852_m","stat_alfa","stat_avg_10sec","stat_stat1","stat_avg_a500"};
-const char * const config_screen_item_names[] = {"speed_field","stat_screens_time","stat_screens","screen_move_offset","board_logo","sail_logo"};
-const char * const board_logos[] = {"Starboard","Fanatic","JP", "NoveNove", "Mistral","Goya", "Patrik", "Severne", "Tabou", "F2","RRD"};
-const char * const sail_logos[] = {"GASails","Duotone", "Pryde", "NeilPryde","LoftSails","Gunsails","Point7","Simmer","Naish","Severne","NorthSails","RRD"};
-const char * const speed_units[] = {"m/s","km/h","knots"};
-const char * const sample_rates[] = {"1 Hz","5 Hz","10 Hz","16 Hz","20 Hz"};
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x),
+#define A_
+#define ADD(x) x|A_
+#define ADD_QUOTE(x) STRINGIFY_(x)
+
+#define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
+#define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_alfa) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
+#define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(NoveNove) l(Mistral) l(Goya) l(Patrik) l(Severne) l(Tabou) l(F2) l(RRD)
+#define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(Pryde) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Simmer) l(Naish) l(Severne) l(NorthSails) l(RRD)
+#define SPEED_UNIT_ITEM_LIST(l) l(m/s) l(km/h) l(knots)
+#define SAMPLE_RATE_ITEM_LIST(l) l(1 Hz) l(5 Hz) l(10 Hz) l(16 Hz) l(20 Hz)
+
+#define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(screen_move_offset) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(file_date_time) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(ubx_file) l(sleep_info) l(hostname)
+
+const char * const config_stat_screen_items[] = { STAT_SCREEN_ITEM_LIST(STRINGIFY) };
+const char * const config_speed_field_items[] = { SPEED_FIELD_ITEM_LIST(STRINGIFY) };
+const char * const config_screen_items[] = { CFG_SCREEN_ITEM_LIST(STRINGIFY) };
+const char * const config_gps_items[] = { CFG_GPS_ITEM_LIST(STRINGIFY) };
+const char * config_item_names = ADD_QUOTE(CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
+const char * config_item_names_compat = "Stat_screens|Stat_screens_time|GPIO12_screens|Board_Logo|board_Logo|sail_Logo|Sail_Logo|logTXT|logSBP|logUBX|logUBX_nav_sat|logGPY|logGPX|UBXfile|Sleep_info|";
+
+const char * const board_logos[] = {BOARD_LOGO_ITEM_LIST(STRINGIFY)};
+const char * const sail_logos[] = {SAIL_LOGO_ITEM_LIST(STRINGIFY)};
+const char * const speed_units[] = {SPEED_UNIT_ITEM_LIST(STRINGIFY)};
+const char * const sample_rates[] = {SAMPLE_RATE_ITEM_LIST(STRINGIFY)};
 const char * const not_set = "not set";
 
 logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
     if(!item) return 0;
-    if(num>=0 && num<lengthof(config_stat_screen_item_names)) {
-        item->name = config_stat_screen_item_names[num];
+    if(num>=0 && num<lengthof(config_stat_screen_items)) {
+        item->name = config_stat_screen_items[num];
         item->pos = num;
-        item->value = (config->stat_screens & (1 << num)) ? 1 : 0;
+        item->value = (config->screen.stat_screens & (1 << num)) ? 1 : 0;
         item->desc = item->value ? "on" : "off";
     }
     return item;
@@ -55,16 +69,16 @@ logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, i
 int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_STAT_FIELDS) return 0;
-    //const char *name = config_gps_item_names[num];
+    //const char *name = config_gps_items[num];
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
-    uint16_t val = config->stat_screens;
+    uint16_t val = config->screen.stat_screens;
     ESP_LOGI(TAG, "[%s]: %d stat_screens:%hu", __func__, num, val);
-    if(num>=0 && num<lengthof(config_stat_screen_item_names)) {
+    if(num>=0 && num<lengthof(config_stat_screen_items)) {
         val ^= (1 << num);
     }
     ESP_LOGI(TAG, "[%s] set stat_screens:%hu", __func__, val);
-    if(val!=config->stat_screens) {
-        config->stat_screens = val;
+    if(val!=config->screen.stat_screens) {
+        config->screen.stat_screens = val;
         config_save_json(config, filename, filename_b, ublox_hw);
     }
     xSemaphoreGive(c_sem_lock);
@@ -73,16 +87,16 @@ int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * fil
 logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
     if(!item) return 0;
-    item->name = config_screen_item_names[num];
+    item->name = config_screen_items[num];
     item->pos = num;
     if(!strcmp(item->name, "speed_field")) {
-        item->value = config->speed_field;
-        if(config->speed_field > 0 && config->speed_field <= lengthof(config_speed_field_item_names))
-            item->desc = config_speed_field_item_names[config->speed_field-1];
+        item->value = config->screen.speed_field;
+        if(config->screen.speed_field > 0 && config->screen.speed_field <= lengthof(config_speed_field_items))
+            item->desc = config_speed_field_items[config->screen.speed_field-1];
         else
             item->desc = not_set;
     } else if(!strcmp(item->name, "stat_screens_time")) {
-        item->value = config->stat_screens_time;
+        item->value = config->screen.stat_screens_time;
         if(item->value <= 1)
             item->desc = "1 sec";
         else if(item->value == 2)
@@ -94,23 +108,41 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
         else if(item->value >= 5)
             item->desc = "5 sec";
     } else if(!strcmp(item->name, "stat_screens")) {
-        item->value = config->stat_screens;
+        item->value = config->screen.stat_screens;
         item->desc = "menu";
     } else if(!strcmp(item->name, "screen_move_offset")) {
         item->value = config->screen_move_offset ? 1 : 0;
         item->desc = config->screen_move_offset ? "on" : "off";
     } else if(!strcmp(item->name, "board_logo")) {
-        item->value = config->board_Logo;
-        if(config->board_Logo > 0 && config->board_Logo <= lengthof(board_logos))
-            item->desc = board_logos[config->board_Logo-1];
+        item->value = config->screen.board_logo;
+        if(config->screen.board_logo > 0 && config->screen.board_logo <= lengthof(board_logos))
+            item->desc = board_logos[config->screen.board_logo-1];
         else
             item->desc = not_set;
     } else if(!strcmp(item->name, "sail_logo")) {
-        item->value = config->sail_Logo;
-        if(config->sail_Logo > 0 && config->sail_Logo <= lengthof(sail_logos))
-            item->desc = sail_logos[config->sail_Logo-1];
+        item->value = config->screen.sail_logo;
+        if(config->screen.sail_logo > 0 && config->screen.sail_logo <= lengthof(sail_logos))
+            item->desc = sail_logos[config->screen.sail_logo-1];
         else
             item->desc = not_set;
+    }
+    else if(!strcmp(item->name, "screen_rotation")) {
+        item->value = config->screen.screen_rotation;
+        if(config->screen.screen_rotation == 0) {
+            item->desc = "0_deg";
+        }
+        else if(config->screen.screen_rotation == 1) {
+            item->desc = "90_deg";
+        }
+        else if(config->screen.screen_rotation == 2) {
+            item->desc = "180_deg";
+        }
+        else if(config->screen.screen_rotation == 3) {
+            item->desc = "270_deg";
+        }
+        else {
+            item->desc = not_set;
+        }
     }
     return item;
 }
@@ -118,25 +150,33 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
 int set_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_SCREEN_FIELDS) return 0;
-    const char *name = config_screen_item_names[num];
+    const char *name = config_screen_items[num];
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     if(!strcmp(name, "speed_field")) {
-        if(config->speed_field == 9) config->speed_field = 1;
-        else config->speed_field++;
+        if(config->screen.speed_field == 9) config->screen.speed_field = 1;
+        else config->screen.speed_field++;
     } else if(!strcmp(name, "stat_screens_time")) {
-        if(config->stat_screens_time == 5) config->stat_screens_time = 4;
-        else if(config->stat_screens_time == 4) config->stat_screens_time = 3;
-        else if(config->stat_screens_time == 3) config->stat_screens_time = 2;
-        else if(config->stat_screens_time == 2) config->stat_screens_time = 1;
-        else config->stat_screens_time = 5;
+        if(config->screen.stat_screens_time == 5) config->screen.stat_screens_time = 4;
+        else if(config->screen.stat_screens_time == 4) config->screen.stat_screens_time = 3;
+        else if(config->screen.stat_screens_time == 3) config->screen.stat_screens_time = 2;
+        else if(config->screen.stat_screens_time == 2) config->screen.stat_screens_time = 1;
+        else config->screen.stat_screens_time = 5;
     } else if (!strcmp(name, "screen_move_offset")) {
         config->screen_move_offset = config->screen_move_offset ? 0 : 1;
     } else if(!strcmp(name, "board_logo")) {
-        if(config->board_Logo >= 11) config->board_Logo = 1;
-        else config->board_Logo++;
+        if(config->screen.board_logo >= 11) config->screen.board_logo = 1;
+        else config->screen.board_logo++;
     } else if(!strcmp(name, "sail_logo")) {
-        if(config->sail_Logo >= 12) config->sail_Logo = 1;
-        else config->sail_Logo++;
+        if(config->screen.sail_logo >= 12) config->screen.sail_logo = 1;
+        else config->screen.sail_logo++;
+    }
+    else if(!strcmp(name, "screen_rotation")) {
+        if(config->screen.screen_rotation >= 3) {
+            config->screen.screen_rotation = 0;
+        }
+        else {
+            config->screen.screen_rotation++;
+        }
     }
     config_save_json(config, filename, filename_b, ublox_hw);
     xSemaphoreGive(c_sem_lock);
@@ -146,44 +186,44 @@ int set_screen_cfg_item(logger_config_t * config, int num, const char * filename
 logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
     if(!item) return 0;
-    item->name = config_gps_item_names[num];
+    item->name = config_gps_items[num];
     item->pos = num;
     if (!strcmp(item->name, "gnss")) {
-        item->value = config->gnss;
-        if(config->gnss == 111) {
+        item->value = config->gps.gnss;
+        if(config->gps.gnss == 111) {
             item->desc = "G + E + B + R";
         }
-        else if(config->gnss == 107) {
+        else if(config->gps.gnss == 107) {
             item->desc = "G + B + R";
         }
-        else if(config->gnss == 103) {
+        else if(config->gps.gnss == 103) {
             item->desc = "G + E + R";
         }
-        else if(config->gnss == 47) {
+        else if(config->gps.gnss == 47) {
             item->desc = "G + E + B";
         }
-        else if(config->gnss == 99) {
+        else if(config->gps.gnss == 99) {
             item->desc = "G + R";
         }
-        else if(config->gnss == 43) {
+        else if(config->gps.gnss == 43) {
             item->desc = "G + B";
         }
-        else if(config->gnss == 39) {
+        else if(config->gps.gnss == 39) {
             item->desc = "G + E";
         }
         else {
             item->desc = not_set;
         }
     } else if (!strcmp(item->name, "sample_rate")) {
-        item->value = config->sample_rate;
-        if(config->sample_rate == 1) {
+        item->value = config->gps.sample_rate;
+        if(config->gps.sample_rate == 1) {
             item->desc = sample_rates[0];
         }
-        else if(config->sample_rate == 16) {
+        else if(config->gps.sample_rate == 16) {
             item->desc = sample_rates[3];
         }
-        else if(config->sample_rate%5 == 0 && config->sample_rate <= 20) {
-            item->desc = sample_rates[config->sample_rate/5];
+        else if(config->gps.sample_rate%5 == 0 && config->gps.sample_rate <= 20) {
+            item->desc = sample_rates[config->gps.sample_rate/5];
         }
         else {
             item->desc = not_set;
@@ -203,32 +243,32 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
             item->desc = "UTC";
         }
     } else if (!strcmp(item->name, "speed_unit")) {
-        item->value = config->speed_unit;
-        item->desc = speed_units[config->speed_unit];
+        item->value = config->gps.speed_unit;
+        item->desc = speed_units[config->gps.speed_unit];
     } else if (!strcmp(item->name, "log_txt")) {
-        item->value = config->log_txt ? 1 : 0;
-        item->desc = config->log_txt ? "on" : "off";
+        item->value = config->gps.log_txt ? 1 : 0;
+        item->desc = config->gps.log_txt ? "on" : "off";
     } else if (!strcmp(item->name, "log_ubx")) {
-        item->value = config->log_ubx ? 1 : 0;
-        item->desc = config->log_ubx ? "on" : "off";
+        item->value = config->gps.log_ubx ? 1 : 0;
+        item->desc = config->gps.log_ubx ? "on" : "off";
     } else if (!strcmp(item->name, "log_sbp")) {
-        item->value = config->log_sbp ? 1 : 0;
-        item->desc = config->log_sbp ? "on" : "off";
+        item->value = config->gps.log_sbp ? 1 : 0;
+        item->desc = config->gps.log_sbp ? "on" : "off";
     } else if (!strcmp(item->name, "log_gpy")) {
-        item->value = config->log_gpy ? 1 : 0;
-        item->desc = config->log_gpy ? "on" : "off";
+        item->value = config->gps.log_gpy ? 1 : 0;
+        item->desc = config->gps.log_gpy ? "on" : "off";
     } else if (!strcmp(item->name, "log_gpx")) {
-        item->value = config->log_gpx ? 1 : 0;
-        item->desc = config->log_gpx ? "on" : "off";
+        item->value = config->gps.log_gpx ? 1 : 0;
+        item->desc = config->gps.log_gpx ? "on" : "off";
     } else if (!strcmp(item->name, "log_ubx_nav_sat")) {
-        item->value = config->log_ubx_nav_sat ? 1 : 0;
-        item->desc = config->log_ubx_nav_sat ? "on" : "off";
+        item->value = config->gps.log_ubx_nav_sat ? 1 : 0;
+        item->desc = config->gps.log_ubx_nav_sat ? "on" : "off";
     } else if (!strcmp(item->name, "dynamic_model")) {
-        item->value = config->dynamic_model;
-        if(config->dynamic_model == 1) {
+        item->value = config->gps.dynamic_model;
+        if(config->gps.dynamic_model == 1) {
             item->desc = "sea";
         }
-        else if(config->dynamic_model == 2) {
+        else if(config->gps.dynamic_model == 2) {
             item->desc = "automotive";
         }
         else {
@@ -241,48 +281,48 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
 int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_GPS_FIELDS) return 0;
-    const char *name = config_gps_item_names[num];
+    const char *name = config_gps_items[num];
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     if (!strcmp(name, "gnss")) {
-        if(config->gnss == 111) config->gnss = 107;
-        else if(config->gnss == 107) config->gnss = 103;
-        else if(config->gnss == 103) config->gnss = 47;
-        else if(config->gnss == 47) config->gnss = 99;
-        else if(config->gnss == 99) config->gnss = 43;
-        else if(config->gnss == 43) config->gnss = 39;
-        else if(config->gnss == 39) config->gnss = 111;
-        else config->gnss = 111;
+        if(config->gps.gnss == 111) config->gps.gnss = 107;
+        else if(config->gps.gnss == 107) config->gps.gnss = 103;
+        else if(config->gps.gnss == 103) config->gps.gnss = 47;
+        else if(config->gps.gnss == 47) config->gps.gnss = 99;
+        else if(config->gps.gnss == 99) config->gps.gnss = 43;
+        else if(config->gps.gnss == 43) config->gps.gnss = 39;
+        else if(config->gps.gnss == 39) config->gps.gnss = 111;
+        else config->gps.gnss = 111;
     } else if (!strcmp(name, "sample_rate")) {
-        if(config->sample_rate == 5) config->sample_rate = 1;
-        else if(config->sample_rate == 10) config->sample_rate = 5;
-        else if(config->sample_rate == 16) config->sample_rate = 10;
-        else if(config->sample_rate == 20) config->sample_rate = 16;
-        else config->sample_rate = 20;
+        if(config->gps.sample_rate == 5) config->gps.sample_rate = 1;
+        else if(config->gps.sample_rate == 10) config->gps.sample_rate = 5;
+        else if(config->gps.sample_rate == 16) config->gps.sample_rate = 10;
+        else if(config->gps.sample_rate == 20) config->gps.sample_rate = 16;
+        else config->gps.sample_rate = 20;
     } else if (!strcmp(name, "timezone")) {
         if(config->timezone == 1) config->timezone = 2;
         else if(config->timezone == 2) config->timezone = 3;
         else if(config->timezone == 3) config->timezone = 1;
         else config->timezone = 1;
    } else if (!strcmp(name, "speed_unit")) {
-        if(config->speed_unit == 1) config->speed_unit = 0;
-        else if(config->speed_unit == 2) config->speed_unit = 1;
-        else  config->speed_unit = 2;
+        if(config->gps.speed_unit == 1) config->gps.speed_unit = 0;
+        else if(config->gps.speed_unit == 2) config->gps.speed_unit = 1;
+        else  config->gps.speed_unit = 2;
     } else if (!strcmp(name, "log_txt")) {
-        config->log_txt = config->log_txt ? 0 : 1;
+        config->gps.log_txt = config->gps.log_txt ? 0 : 1;
     } else if (!strcmp(name, "log_ubx")) {
-        config->log_ubx = config->log_ubx ? 0 : 1;
+        config->gps.log_ubx = config->gps.log_ubx ? 0 : 1;
     } else if (!strcmp(name, "log_sbp")) {
-        config->log_sbp = config->log_sbp ? 0 : 1;
+        config->gps.log_sbp = config->gps.log_sbp ? 0 : 1;
     } else if (!strcmp(name, "log_gpy")) {
-        config->log_gpy = config->log_gpy ? 0 : 1;
+        config->gps.log_gpy = config->gps.log_gpy ? 0 : 1;
     } else if (!strcmp(name, "log_gpx")) {
-        config->log_gpx = config->log_gpx ? 0 : 1;
+        config->gps.log_gpx = config->gps.log_gpx ? 0 : 1;
     } else if (!strcmp(name, "log_ubx_nav_sat")) {
-        config->log_ubx_nav_sat = config->log_ubx_nav_sat ? 0 : 1;
+        config->gps.log_ubx_nav_sat = config->gps.log_ubx_nav_sat ? 0 : 1;
     } else if (!strcmp(name, "dynamic_model")) {
-        if(config->dynamic_model == 0) config->dynamic_model = 2;
-        else if(config->dynamic_model == 2) config->dynamic_model = 1;
-        else config->dynamic_model = 0;
+        if(config->gps.dynamic_model == 0) config->gps.dynamic_model = 2;
+        else if(config->gps.dynamic_model == 2) config->gps.dynamic_model = 1;
+        else config->gps.dynamic_model = 0;
     }
     config_save_json(config, filename, filename_b, ublox_hw);
     xSemaphoreGive(c_sem_lock);
@@ -398,8 +438,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         float val = value->data.number_;
-        if (force || val != config->speed_unit) {
-            config->speed_unit = val;
+        if (force || val != config->gps.speed_unit) {
+            config->gps.speed_unit = val;
             changed = 1;
         }
 
@@ -408,8 +448,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->sample_rate) {
-            config->sample_rate = val;
+        if (force || val != config->gps.sample_rate) {
+            config->gps.sample_rate = val;
             changed = 1;
         }
 
@@ -418,8 +458,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->gnss) {
-            config->gnss = val;
+        if (force || val != config->gps.gnss) {
+            config->gps.gnss = val;
             changed = 1;
         }
 
@@ -428,8 +468,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->speed_field) {
-            config->speed_field = val;
+        if (force || val != config->screen.speed_field) {
+            config->screen.speed_field = val;
             changed = 1;
         }
 
@@ -441,8 +481,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->speed_large_font) {
-            config->speed_large_font = val;
+        if (force || val != config->screen.speed_large_font) {
+            config->screen.speed_large_font = val;
             changed = 1;
         }
 
@@ -452,8 +492,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->dynamic_model) {
-            config->dynamic_model = val;
+        if (force || val != config->gps.dynamic_model) {
+            config->gps.dynamic_model = val;
             changed = 1;
         }
 
@@ -474,8 +514,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint32_t val = value->data.number_;
-        if (force || val != config->stat_screens) {
-            config->stat_screens = val;
+        if (force || val != config->screen.stat_screens) {
+            config->screen.stat_screens = val;
             changed = 1;
         }
 
@@ -484,8 +524,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->stat_screens_time) {
-            config->stat_screens_time = val;
+        if (force || val != config->screen.stat_screens_time) {
+            config->screen.stat_screens_time = val;
             changed = 1;
         }
 
@@ -495,8 +535,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint32_t val = value->data.number_;
-        if (force || val != config->gpio12_screens) {
-            config->gpio12_screens = val;
+        if (force || val != config->screen.gpio12_screens) {
+            config->screen.gpio12_screens = val;
             changed = 1;
         }
 
@@ -507,8 +547,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
     //         goto err;
     //     }
     //     uint8_t val = value->data.number_;
-    //     if (force || val != config->stat_screens_persist) {
-    //         config->stat_screens_persist = val;
+    //     if (force || val != config->screen.stat_screens_persist) {
+    //         config->screen.stat_screens_persist = val;
     //         changed = 1;
     //     }
 
@@ -519,8 +559,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
     //         goto err;
     //     }
     //     uint8_t val = value->data.number_;
-    //     if (force || val != config->gpio12_screens_persist) {
-    //         config->gpio12_screens_persist = val;
+    //     if (force || val != config->screen.gpio12_screens_persist) {
+    //         config->screen.gpio12_screens_persist = val;
     //         changed = 1;
     //     }
 
@@ -541,8 +581,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->board_Logo) {
-            config->board_Logo = val;
+        if (force || val != config->screen.board_logo) {
+            config->screen.board_logo = val;
             changed = 1;
         }
 
@@ -551,8 +591,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->sail_Logo) {
-            config->sail_Logo = val;
+        if (force || val != config->screen.sail_logo) {
+            config->screen.sail_logo = val;
             changed = 1;
         }
 
@@ -561,8 +601,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->stat_speed) {
-            config->stat_speed = val;
+        if (force || val != config->screen.stat_speed) {
+            config->screen.stat_speed = val;
             changed = 1;
         }
 
@@ -572,8 +612,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint16_t val = value->data.number_;
-        if (force || val != config->bar_length) {
-            config->bar_length = val;
+        if (force || val != config->gps.bar_length) {
+            config->gps.bar_length = val;
             changed = 1;
         }
 
@@ -592,8 +632,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_txt) {
-            config->log_txt = val;
+        if (force || val != config->gps.log_txt) {
+            config->gps.log_txt = val;
             changed = 1;
         }
 
@@ -602,8 +642,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_ubx) {
-            config->log_ubx = val;
+        if (force || val != config->gps.log_ubx) {
+            config->gps.log_ubx = val;
             changed = 1;
         }
 
@@ -612,8 +652,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_ubx_nav_sat) {
-            config->log_ubx_nav_sat = val;
+        if (force || val != config->gps.log_ubx_nav_sat) {
+            config->gps.log_ubx_nav_sat = val;
             changed = 1;
         }
 
@@ -622,8 +662,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_sbp) {
-            config->log_sbp = val;
+        if (force || val != config->gps.log_sbp) {
+            config->gps.log_sbp = val;
             changed = 1;
         }
 
@@ -632,8 +672,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_gpy) {
-            config->log_gpy = val;
+        if (force || val != config->gps.log_gpy) {
+            config->gps.log_gpy = val;
             changed = 1;
         }
 
@@ -643,8 +683,8 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             goto err;
         }
         uint8_t val = value->data.number_;
-        if (force || val != config->log_gpx) {
-            config->log_gpx = val;
+        if (force || val != config->gps.log_gpx) {
+            config->gps.log_gpx = val;
             changed = 1;
         }
 
@@ -656,6 +696,17 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         uint8_t val = value->data.number_;
         if (force || val != config->file_date_time) {
             config->file_date_time = val;
+            changed = 1;
+        }
+
+    }
+    else if (!strcmp(var, "screen_rotation")) {
+        if (!value || value->tag != JSON_NUMBER) {
+            goto err;
+        }
+        uint8_t val = value->data.number_;
+        if (force || val != config->screen.screen_rotation) {
+            config->screen.screen_rotation = val;
             changed = 1;
         }
 
@@ -831,6 +882,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
     if (changed <= -2)
         changed = SET_CONF(root, "logGPX");
     changed = SET_CONF(root, "file_date_time");
+    changed = SET_CONF(root, "screen_rotation");
     changed = SET_CONF(root, "timezone");
     changed = SET_CONF(root, "ubx_file");
     if (changed <= -2)
@@ -855,6 +907,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 }
 
 esp_err_t config_load_json(logger_config_t *config, const char *filename, const char *filename_backup) {
+    ILOG(TAG,"[%s]",__func__);
     IMEAS_START();
     int ret = ESP_OK;
     char *json = 0;
@@ -879,6 +932,7 @@ done:
 }
 
 esp_err_t config_save_json(logger_config_t *config, const char *filename, const char *filename_backup, uint8_t ublox_hw) {
+    ILOG(TAG,"[%s]",__func__);
     int ret = ESP_OK;
     strbf_t sb;
     strbf_init(&sb);
@@ -887,6 +941,9 @@ esp_err_t config_save_json(logger_config_t *config, const char *filename, const 
         ESP_LOGE(TAG, "[%s] bad json: %s", __FUNCTION__ , json);
         goto done;
     }
+#if (CONFIG_LOGGER_CONFIG_LOG_LEVEL <= 1)
+    printf("[%s] save json: %s", __FUNCTION__, json);
+#endif
     s_rename_file(filename, filename_backup, CONFIG_SD_MOUNT_POINT);
     ret = s_write(filename, CONFIG_SD_MOUNT_POINT, sb.start, sb.cur - sb.start);
 done:
@@ -902,9 +959,9 @@ logger_config_t *config_fix_values(logger_config_t *config) {
     /* if (config->cal_bat > 1)
         config->cal_bat = 1.0; */
     if (config->file_date_time == 0)
-        config->log_txt = 1;  // because txt file is needed for generating new file count !!
-    if (config->stat_screens_time < 1)
-        config->stat_screens_time = 1;
+        config->gps.log_txt = 1;  // because txt file is needed for generating new file count !!
+    if (config->screen.stat_screens_time < 1)
+        config->screen.stat_screens_time = 1;
     return config;
 }
 
@@ -917,49 +974,49 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
     if (!orig && config)
         return -3;
     if(orig && config) {
-        if (orig->speed_unit != config->speed_unit)
+        if (orig->gps.speed_unit != config->gps.speed_unit)
             return 2;
-        if (orig->sample_rate != config->sample_rate)
+        if (orig->gps.sample_rate != config->gps.sample_rate)
             return 3;
-        if (orig->gnss != config->gnss)
+        if (orig->gps.gnss != config->gps.gnss)
             return 4;
-        if (orig->speed_field != config->speed_field)
+        if (orig->screen.speed_field != config->screen.speed_field)
             return 5;
-        if (orig->speed_large_font != config->speed_large_font)
+        if (orig->screen.speed_large_font != config->screen.speed_large_font)
             return 6;
-        if (orig->bar_length != config->bar_length)
+        if (orig->gps.bar_length != config->gps.bar_length)
             return 7;
-        if (orig->stat_speed != config->stat_speed)
+        if (orig->screen.stat_speed != config->screen.stat_speed)
             return 8;
         if (orig->archive_days != config->archive_days)
             return 9;
-        if (orig->stat_screens_time != config->stat_screens_time)
+        if (orig->screen.stat_screens_time != config->screen.stat_screens_time)
             return 10;
-        if (orig->stat_screens != config->stat_screens)
+        if (orig->screen.stat_screens != config->screen.stat_screens)
             return 11;
-        // if (orig->stat_screens_persist != config->stat_screens_persist)
+        // if (orig->screen.stat_screens_persist != config->screen.stat_screens_persist)
         //     return 12;
-        if (orig->gpio12_screens != config->gpio12_screens)
+        if (orig->screen.gpio12_screens != config->screen.gpio12_screens)
             return 13;
         if (orig->screen_move_offset != config->screen_move_offset)
             return 14;
-        if (orig->board_Logo != config->board_Logo)
+        if (orig->screen.board_logo != config->screen.board_logo)
             return 15;
-        if (orig->sail_Logo != config->sail_Logo)
+        if (orig->screen.sail_logo != config->screen.sail_logo)
             return 16;
-        if (orig->log_txt != config->log_txt)
+        if (orig->gps.log_txt != config->gps.log_txt)
             return 18;
-        if (orig->log_ubx != config->log_ubx)
+        if (orig->gps.log_ubx != config->gps.log_ubx)
             return 19;
-        if (orig->log_ubx_nav_sat != config->log_ubx_nav_sat)
+        if (orig->gps.log_ubx_nav_sat != config->gps.log_ubx_nav_sat)
             return 2;
-        if (orig->log_sbp != config->log_sbp)
+        if (orig->gps.log_sbp != config->gps.log_sbp)
             return 21;
-        if (orig->log_gpy != config->log_gpy)
+        if (orig->gps.log_gpy != config->gps.log_gpy)
             return 22;
         if (orig->file_date_time != config->file_date_time)
             return 23;
-        if (orig->dynamic_model != config->dynamic_model)
+        if (orig->gps.dynamic_model != config->gps.dynamic_model)
             return 24;
         if (orig->timezone != config->timezone)
             return 25;
@@ -971,7 +1028,9 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return 30;
         if (strcmp(config->hostname, orig->hostname))
             return 32;
-        for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=33; i<j; i++,k++) {
+        if (config->screen.screen_rotation != orig->screen.screen_rotation)
+            return 33;
+        for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=34; i<j; i++,k++) {
             if (strcmp(config->wifi_sta[i].ssid, orig->wifi_sta[i].ssid))
                 return k;
             if (strcmp(config->wifi_sta[i].password, orig->wifi_sta[i].password))
@@ -1020,7 +1079,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     } else 
 #endif
     if (!strcmp(name, "speed_unit")) {  // speed units, 0 = m/s 1 = km/h, 2 = knots
-        strbf_putn(&lsb, config->speed_unit);
+        strbf_putn(&lsb, config->gps.speed_unit);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Speed display units\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
@@ -1035,7 +1094,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "sample_rate")) {  // gps_rate in Hz, 1, 5 or 10Hz !!!
-        strbf_putn(&lsb, config->sample_rate);
+        strbf_putn(&lsb, config->gps.sample_rate);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"gps_rate in Hz\",\"type\":\"int\"");
             strbf_puts(&lsb,",\"values\":[");
@@ -1052,7 +1111,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"ext\":\"Hz\"");
         }
     } else if (!strcmp(name, "gnss")) {
-        strbf_putn(&lsb, config->gnss);
+        strbf_putn(&lsb, config->gps.gnss);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\" default ");
             if (ublox_hw >= UBX_TYPE_M9) {
@@ -1074,15 +1133,15 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "speed_field")) {  // choice for first field in speed screen !!!
-        strbf_putn(&lsb, config->speed_field);
+        strbf_putn(&lsb, config->screen.speed_field);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"choice for first field in speed screen\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
-            for(uint8_t i = 0, j = lengthof(config_speed_field_item_names); i < j; i++) {
+            for(uint8_t i = 0, j = lengthof(config_speed_field_items); i < j; i++) {
                 strbf_puts(&lsb, "{\"value\":");
                 strbf_putn(&lsb, i+1);
                 strbf_puts(&lsb, ",\"title\":\"");
-                strbf_puts(&lsb, config_speed_field_item_names[i]);
+                strbf_puts(&lsb, config_speed_field_items[i]);
                 strbf_puts(&lsb, "\"}");
                 if(i < j-1) strbf_putc(&lsb, ',');
             }
@@ -1091,12 +1150,12 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     }
 
     else if (!strcmp(name, "speed_large_font")) {  // fonts on the first line are bigger, actual speed font is smaller
-        strbf_putn(&lsb, config->speed_large_font);
+        strbf_putn(&lsb, config->screen.speed_large_font);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "dynamic_model")) {  // choice for dynamic model "Sea",if 0 model "portable" is used !!
-        strbf_putn(&lsb, config->dynamic_model);
+        strbf_putn(&lsb, config->gps.dynamic_model);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"choice for dynamic model 'Sea', if 0 model 'Portable' is used !!\",\"type\":\"int\",");
             strbf_puts(&lsb, "\"values\":[{\"value\":0,\"title\":\"Portable\"},");
@@ -1124,15 +1183,15 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         }                                        // 2575
     } else if (!strcmp(name, "stat_screens")||!strcmp(name, "Stat_screens")) {  // choice for stats field when no speed, here stat_screen
         // 1, 2 and 3 will be active
-        strbf_putn(&lsb, config->stat_screens);
+        strbf_putn(&lsb, config->screen.stat_screens);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : activate / deactivate screens to show.\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"toggles\":[");
-            for(uint8_t i= 0, j = 1, k = lengthof(config_stat_screen_item_names); i < k; i++, j <<= 1) {
+            for(uint8_t i= 0, j = 1, k = lengthof(config_stat_screen_items); i < k; i++, j <<= 1) {
                 strbf_puts(&lsb, "{\"pos\":");
                 strbf_putn(&lsb, i);
                 strbf_puts(&lsb, ",\"title\":\"");
-                strbf_puts(&lsb, config_stat_screen_item_names[i]);
+                strbf_puts(&lsb, config_stat_screen_items[i]);
                 strbf_puts(&lsb, "\",\"value\":");
                 strbf_putn(&lsb, j);
                 strbf_puts(&lsb, "}");
@@ -1141,7 +1200,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "stat_screens_time")||!strcmp(name, "Stat_screens_time")) {  // time between switching stat_screens
-        strbf_putn(&lsb, config->stat_screens_time);
+        strbf_putn(&lsb, config->screen.stat_screens_time);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"The time between toggle the different stat screens\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
@@ -1157,21 +1216,21 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         }
     } else if (!strcmp(name, "gpio12_screens")||!strcmp(name, "GPIO12_screens")) {  // choice for stats field when gpio12 is activated
         // (pull-up high, low = active)
-        strbf_putn(&lsb, config->gpio12_screens);
+        strbf_putn(&lsb, config->screen.gpio12_screens);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"GPIO12_screens choice : Every digit shows the according GPIO_screen after each push. Screen 4 = s10 runs, screen 5 = alfa's.\",\"type\":\"int\"");
         }
     // } else if (!strcmp(name, "stat_screens_persist")) {  // choice for stats field when no speed, here
     //     // stat_screen 1, 2 and 3 will be active / for
     //     // resave the config
-    //     strbf_putn(&lsb, config->stat_screens_persist);
+    //     strbf_putn(&lsb, config->screen.stat_screens_persist);
     //     if (mode) {
     //         strbf_puts(&lsb, ",\"info\":\"Persist stat screens\",\"type\":\"int\"");
     //     }
     // } else if (!strcmp(name, "gpio12_screens_persist")) {  // choice for stats field when gpio12 is
     //     // activated (pull-up high, low = active) / for
     //     // resave the config
-    //     strbf_putn(&lsb, config->gpio12_screens_persist);
+    //     strbf_putn(&lsb, config->screen.gpio12_screens_persist);
     //     if (mode) {
     //         strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
     //     }
@@ -1181,7 +1240,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"info\":\"move epd sceen content to pervent panel burn\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "board_logo")||!strcmp(name, "board_logo")||!strcmp(name, "Board_Logo")) {
-        strbf_putn(&lsb, config->board_Logo);
+        strbf_putn(&lsb, config->screen.board_logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Board_Logo\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
@@ -1196,7 +1255,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "sail_logo")||!strcmp(name, "sail_logo")||!strcmp(name, "Sail_Logo")) {
-        strbf_putn(&lsb, config->sail_Logo);
+        strbf_putn(&lsb, config->screen.sail_logo);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Sail Logo\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
@@ -1211,13 +1270,13 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     } else if (!strcmp(name, "stat_speed")) {  // max speed in m/s for showing Stat screens
-        strbf_putn(&lsb, config->stat_speed);
+        strbf_putn(&lsb, config->screen.stat_speed);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"max speed in m/s for showing Stat screens\",\"type\":\"int\",\"ext\":\"m/s\"");
         }
     } else if (!strcmp(name, "bar_length")) {  // choice for bar indicator for length of run in m
         // (nautical mile)
-        strbf_putn(&lsb, config->bar_length);
+        strbf_putn(&lsb, config->gps.bar_length);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"bar_length: Default length = 1852 m for 100% bar (=Nautical mile)\",\"type\":\"int\",\"ext\":\"m\"");
         }
@@ -1227,33 +1286,33 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, ",\"info\":\"how many days files will be moved to the 'Archive' dir\",\"type\":\"int\",\"ext\":\"d\"");
         }
     } else if (!strcmp(name, "log_txt")||!strcmp(name, "logTXT")) {  // switchinf off .txt files
-        strbf_putn(&lsb, config->log_txt);
+        strbf_putn(&lsb, config->gps.log_txt);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .txt\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "log_ubx")||!strcmp(name, "logUBX")) {  // log to .ubx
-        strbf_putn(&lsb, config->log_ubx);
+        strbf_putn(&lsb, config->gps.log_ubx);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .ubx\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "log_ubx_nav_sat")||!strcmp(name, "logUBX_nav_sat")) {  // log nav sat msg to .ubx
-        strbf_putn(&lsb, config->log_ubx_nav_sat);
+        strbf_putn(&lsb, config->gps.log_ubx_nav_sat);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log nav sat msg to .ubx\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "log_sbp")||!strcmp(name, "logSBP")) {  // log to .sbp
-        strbf_putn(&lsb, config->log_sbp);
+        strbf_putn(&lsb, config->gps.log_sbp);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .sbp\",\"type\":\"bool\"");
         }
     } else if (!strcmp(name, "log_gpy")||!strcmp(name, "logGPY")) {
-        strbf_putn(&lsb, config->log_gpy);
+        strbf_putn(&lsb, config->gps.log_gpy);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .gpy\",\"type\":\"bool\"");
         }
     }  // log to .gps
     else if (!strcmp(name, "log_gpx")||!strcmp(name, "logGPX")) {
-        strbf_putn(&lsb, config->log_gpx);
+        strbf_putn(&lsb, config->gps.log_gpx);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"log to .gpx\",\"type\":\"bool\"");
         }
@@ -1269,6 +1328,18 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
             strbf_puts(&lsb, "]");
         }
     }  // type of filenaming, with MAC adress or datetime
+    else if (!strcmp(name, "screen_rotation")) {
+        strbf_putn(&lsb, config->screen.screen_rotation);
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"screen rotation degrees\",\"type\":\"int\",");
+            strbf_puts(&lsb, "\"values\":[");
+            strbf_puts(&lsb, "{\"value\":0,\"title\":\"0\"},");
+            strbf_puts(&lsb, "{\"value\":1,\"title\":\"90 degrees\"},");
+            strbf_puts(&lsb, "{\"value\":2,\"title\":\"180 degrees\"}");
+            strbf_puts(&lsb, "{\"value\":3,\"title\":\"270 degrees\"}");
+            strbf_puts(&lsb, "]");
+        }
+    }  // screen_rotation
     else if (!strcmp(name, "ubx_file")||!strcmp(name, "UBXfile")) {
         strbf_puts(&lsb, "\"");
         strbf_puts(&lsb, config->ubx_file);
@@ -1398,7 +1469,8 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
         CONF_GET(&ssid[0]);
         CONF_GET(&password[0]);
     }
-    CONF_GETC("sleep_info");
+    CONF_GET("sleep_info");
+    CONF_GETC("screen_rotation");
     
     strbf_puts(sb, "\n}\n");
     return strbf_finish(sb);

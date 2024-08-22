@@ -34,8 +34,22 @@ typedef struct logger_config_gps_s {
     uint8_t log_gpx;          // log to .gpx
     uint8_t log_ubx_nav_sat;  // log nav sat msg to .ubx
     uint8_t dynamic_model;    // choice for dynamic model "Sea",if 0 model "portable" is used !!
+    uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
 } logger_config_gps_t;
 #define L_CONFIG_GPS_FIELDS sizeof(struct logger_config_gps_s)
+#define LOGGER_CONFIG_GPS_DEFAULTS() { \
+    .gnss = 111, \
+    .sample_rate = 10, \
+    .speed_unit = 1, \
+    .log_txt = true, \
+    .log_ubx = true, \
+    .log_sbp = false, \
+    .log_gpy = false, \
+    .log_gpx = false, \
+    .log_ubx_nav_sat = false, \
+    .dynamic_model = 0, \
+    .bar_length = 1852, \
+}
 
 typedef struct logger_config_speed_field_s {
     uint8_t dynamic;
@@ -49,6 +63,17 @@ typedef struct logger_config_speed_field_s {
     uint8_t stat_1_hour_dynamic;
 } logger_config_speed_field_t;
 #define L_CONFIG_SPEED_FIELDS sizeof(struct logger_config_speed_field_s)
+#define LOGGER_CONFIG_SPEED_FIELS_DEFAULTS() { \
+    .dynamic = 1, \
+    .stat_10_sec = 0, \
+    .stat_alpha = 0, \
+    .stat_1852_m = 0, \
+    .stat_dist_500m = 0, \
+    .stat_max_2s_10s = 0, \
+    .stat_half_hour = 0, \
+    .stat_1_hour = 0, \
+    .stat_1_hour_dynamic = 0, \
+}
 
 typedef struct logger_config_stat_screens_s {
     uint8_t stat_10_sec;
@@ -62,6 +87,17 @@ typedef struct logger_config_stat_screens_s {
     uint8_t stat_avg_a500;
 } logger_config_stat_screens_t;
 #define L_CONFIG_STAT_FIELDS sizeof(struct logger_config_stat_screens_s)
+#define LOGGER_CONFIG_STAT_SCREENS_DEFAULTS() { \
+    .stat_10_sec = 1, \
+    .stat_2_sec = 1, \
+    .stat_250_m = 1, \
+    .stat_500_m = 1, \
+    .stat_1852_m = 1, \
+    .stat_alfa = 0, \
+    .stat_avg_10sec = 1, \
+    .stat_stat1 = 1, \
+    .stat_avg_a500 = 0, \
+}
 
 typedef struct logger_config_screen_s {
     uint8_t speed_field;             // choice for first field in speed screen !!!
@@ -69,8 +105,25 @@ typedef struct logger_config_screen_s {
     uint8_t stat_screens_time;       // time between switching stat_screens
     uint8_t board_logo;
     uint8_t sail_logo;
+    uint8_t screen_rotation;
+    uint8_t screen_no_auto_refresh;
+    uint8_t stat_speed;       // max speed in m/s for showing Stat screens
+    uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
+    uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
 } logger_config_screen_t;
 #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
+#define LOGGER_CONFIG_SCREEN_DEFAULTS() { \
+    .speed_field = 1, \
+    .speed_large_font = 0, \
+    .stat_screens_time = 3, \
+    .board_logo = 1, \
+    .sail_logo = 1, \
+    .stat_speed = 1, \
+    .screen_rotation = 1, \
+    .screen_no_auto_refresh = false, \
+    .stat_screens = 255U, \
+    .gpio12_screens = 255U, \
+}
 
 #define L_CONFIG_SSID_MAX 4
 
@@ -80,39 +133,15 @@ typedef struct logger_config_wifi_sta_s {
 } logger_config_wifi_sta_t;
 
 typedef struct logger_config_s {
-    bool log_txt;          // switchinf off .txt files
-    bool log_ubx;          // log to .ubx
-    bool log_sbp;          // log to .sbp
-    bool log_gpy;          // log to .gps
-    bool log_gpx;          // log to .gpx
-    bool log_ubx_nav_sat;  // log nav sat msg to .ubx
-    
-    uint8_t sample_rate;             // gps_rate in Hz, 1, 5 or 10Hz !!!
-    uint8_t gnss;                    // default setting 2 GNSS, GPS & GLONAS
-    uint8_t speed_field;             // choice for first field in speed screen !!!
-    uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
-    uint8_t dynamic_model;           // choice for dynamic model "Sea",if 0 model "portable" is used !!
-    uint8_t stat_screens_time;       // time between switching stat_screens
-    //uint32_t stat_screens_persist;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active for resave the config
-    //uint32_t gpio12_screens_persist;  // choice for stats field when gpio12 is activated (pull-up high, low = active) for resave the config
-    uint8_t board_Logo;
-    uint8_t sail_Logo;
-    uint8_t stat_speed;       // max speed in m/s for showing Stat screens
+    logger_config_gps_t gps;
+    logger_config_screen_t screen;
+    float timezone;           // choice for timedifference in hours with UTC, for Belgium 1 or 2 (summertime)
     uint8_t file_date_time;   // type of filenaming, with MAC adress or datetime
     uint8_t config_fail;
     int8_t  screen_move_offset;
     uint8_t speed_field_count;
-    uint8_t screen_rotation;
-    bool screen_no_auto_refresh;
 
-    uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
-    uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
-    uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
     uint16_t archive_days;    // how many days files will be moved to the "Archive" dir
-
-    // float cal_bat;          // calibration for read out bat voltage
-    uint8_t speed_unit;       // 0 = m/s, 1 = km/h, 2 = knots
-    float timezone;           // choice for timedifference in hours with UTC, for Belgium 1 or 2 (summertime)
  
     char ubx_file[32];    // your preferred filename
     char sleep_info[32];  // your preferred sleep text
@@ -122,32 +151,13 @@ typedef struct logger_config_s {
 } logger_config_t;
 
 #define LOGGER_CONFIG_DEFAULTS() { \
-    .log_txt = true, \
-    .log_ubx = true, \
-    .log_sbp = false, \
-    .log_gpy = false, \
-    .log_gpx = false, \
-    .log_ubx_nav_sat = false, \
-    .sample_rate = 10, \
-    .gnss = 111, \
-    .speed_field = 1, \
-    .speed_large_font = 1, \
-    .dynamic_model = 0, \
-    .stat_screens_time = 3, \
-    .board_Logo = 1, \
-    .sail_Logo = 1, \
-    .stat_speed = 1, \
+    .gps = LOGGER_CONFIG_GPS_DEFAULTS(), \
+    .screen = LOGGER_CONFIG_SCREEN_DEFAULTS(), \
     .file_date_time = 2, \
     .config_fail = 0, \
     .screen_move_offset = 1, \
-    .speed_field_count = 9, \
-    .screen_rotation = 0, \
-    .screen_no_auto_refresh = false, \
-    .stat_screens = 255U, \
-    .gpio12_screens = 255U, \
-    .bar_length = 1852, \
+    .speed_field_count = L_CONFIG_SPEED_FIELDS, \
     .archive_days = 30, \
-    .speed_unit = 1, \
     .timezone = 2, \
     .ubx_file = "gps", \
     .sleep_info = "ESP GPS", \
