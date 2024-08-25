@@ -36,6 +36,7 @@ ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(Pryde) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Simmer) l(Naish) l(Severne) l(NorthSails) l(RRD)
 #define SPEED_UNIT_ITEM_LIST(l) l(m/s) l(km/h) l(knots)
 #define SAMPLE_RATE_ITEM_LIST(l) l(1 Hz) l(5 Hz) l(10 Hz) l(16 Hz) l(20 Hz)
+#define SCREEN_ROTATION_ITEM_LIST(l) l(0_deg) l(90_deg) l(180_deg) l(270_deg)
 
 #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
 #define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(screen_move_offset) l(board_logo) l(sail_logo) l(screen_rotation)
@@ -52,6 +53,7 @@ const char * const board_logos[] = {BOARD_LOGO_ITEM_LIST(STRINGIFY)};
 const char * const sail_logos[] = {SAIL_LOGO_ITEM_LIST(STRINGIFY)};
 const char * const speed_units[] = {SPEED_UNIT_ITEM_LIST(STRINGIFY)};
 const char * const sample_rates[] = {SAMPLE_RATE_ITEM_LIST(STRINGIFY)};
+const char * const screen_rotations[] = {SCREEN_ROTATION_ITEM_LIST(STRINGIFY)};
 const char * const not_set = "not set";
 
 logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
@@ -128,21 +130,10 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
     }
     else if(!strcmp(item->name, "screen_rotation")) {
         item->value = config->screen.screen_rotation;
-        if(config->screen.screen_rotation == 0) {
-            item->desc = "0_deg";
-        }
-        else if(config->screen.screen_rotation == 1) {
-            item->desc = "90_deg";
-        }
-        else if(config->screen.screen_rotation == 2) {
-            item->desc = "180_deg";
-        }
-        else if(config->screen.screen_rotation == 3) {
-            item->desc = "270_deg";
-        }
-        else {
+        if(config->screen.screen_rotation <= 3)
+            item->desc = screen_rotations[config->screen.screen_rotation];
+        else
             item->desc = not_set;
-        }
     }
     return item;
 }
@@ -1167,7 +1158,7 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
     } else if (!strcmp(name, "timezone")) {  // choice for timedifference in hours with UTC, for Belgium 1 or 2 (summertime)
         strbf_putd(&lsb, config->timezone, 1, 0);
         if (mode) {
-            strbf_puts(&lsb, ",\"info\":\"timezone: The local time difference in hours with UTC (can be fractional/negative!) <a href='https://en.wikipedia.org/wiki/List_of_UTC_offsets' target='_blank'>Wikipedia</a>\",\"type\":\"float\",\"ext\":\"h\"");
+            strbf_puts(&lsb, ",\"info\":\"timezone: The local time difference in hours with UTC\",\"type\":\"float\",\"ext\":\"h\"");
             strbf_puts(&lsb, ",\"values\":[");
             for(int8_t i = 0, j=4; i < j; i++) {
                 strbf_puts(&lsb, "{\"value\":");
@@ -1333,10 +1324,14 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"screen rotation degrees\",\"type\":\"int\",");
             strbf_puts(&lsb, "\"values\":[");
-            strbf_puts(&lsb, "{\"value\":0,\"title\":\"0\"},");
-            strbf_puts(&lsb, "{\"value\":1,\"title\":\"90 degrees\"},");
-            strbf_puts(&lsb, "{\"value\":2,\"title\":\"180 degrees\"}");
-            strbf_puts(&lsb, "{\"value\":3,\"title\":\"270 degrees\"}");
+            for(uint8_t i = 0, j = lengthof(screen_rotations); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, screen_rotations[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
             strbf_puts(&lsb, "]");
         }
     }  // screen_rotation
