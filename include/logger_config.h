@@ -125,6 +125,21 @@ typedef struct logger_config_screen_s {
     .gpio12_screens = 255U, \
 }
 
+typedef enum {
+    FW_UPDATE_CHANNEL_PROD = 0,
+    FW_UPDATE_CHANNEL_DEV = 1,
+} fw_update_channel_t;
+
+typedef struct logger_config_fwupdate_c {
+    bool update_enabled;
+    fw_update_channel_t channel;
+} logger_config_fwupdate_t;
+
+#define LOGGER_CONFIG_FWUPDATE_DEFAULTS() { \
+    .update_enabled = true, \
+    .channel = FW_UPDATE_CHANNEL_PROD, \
+}
+
 #define L_CONFIG_SSID_MAX 4
 
 typedef struct logger_config_wifi_sta_s {
@@ -146,8 +161,11 @@ typedef struct logger_config_s {
     char ubx_file[32];    // your preferred filename
     char sleep_info[32];  // your preferred sleep text
 
+    struct logger_config_fwupdate_c fwupdate;
+
     struct logger_config_wifi_sta_s wifi_sta[L_CONFIG_SSID_MAX]; // your SSID and password
     char hostname[32];    // your hostname
+    void(*config_changed_screen_cb)(const char *name);
 } logger_config_t;
 
 #define LOGGER_CONFIG_DEFAULTS() { \
@@ -161,6 +179,7 @@ typedef struct logger_config_s {
     .timezone = 2, \
     .ubx_file = "gps", \
     .sleep_info = "ESP GPS", \
+    .fwupdate = LOGGER_CONFIG_FWUPDATE_DEFAULTS(), \
     .hostname = "esp-logger", \
     .wifi_sta = { \
         { .ssid = "ssid1", .password = "password1" }, \
@@ -168,6 +187,7 @@ typedef struct logger_config_s {
         { {0}, {0} }, \
         { {0}, {0} }, \
     }, \
+    .config_changed_screen_cb = NULL, \
 }
 
 struct strbf_s;
@@ -210,7 +230,7 @@ struct logger_config_s *config_defaults(struct logger_config_s *config);
 * @param max The maximum length of the string
 * @param mode The mode to get the variable in
 */
-char *config_get(struct logger_config_s *config, const char *name, char *str, size_t *len, size_t max, uint8_t mode, uint8_t ublox_hw);
+char *config_get(const struct logger_config_s *config, const char *name, char *str, size_t *len, size_t max, uint8_t mode, const uint8_t ublox_hw);
 
 /*
 * @brief Set a variable in the configuration
@@ -227,7 +247,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
 * @param filename The filename to load the configuration from
 * @param filename_backup The filename to load the configuration from
 */
-int config_load_json(struct logger_config_s *config, const char *filename, const char *filename_backup);
+int config_load_json(struct logger_config_s *config);
 
 /*
 * @brief Save the configuration to a file
@@ -235,7 +255,7 @@ int config_load_json(struct logger_config_s *config, const char *filename, const
 * @param filename The filename to save the configuration to
 * @param filename_backup The filename to save the configuration to
 */
-int config_save_json(struct logger_config_s *config, const char *filename, const char *filename_backup, uint8_t ublox_hw);
+int config_save_json(struct logger_config_s *config, uint8_t ublox_hw);
 
 /*
 * @brief Decode a JSON string into a configuration
@@ -295,7 +315,7 @@ int config_set_var(struct logger_config_s *config, const char *json, const char 
 * @param json The JSON string to save the variable from
 * @param var The variable to save
 */
-int config_save_var(struct logger_config_s *config, const char *filename, const char * filename_b, const char *json, const char *var, uint8_t ublox_hw);
+int config_save_var(struct logger_config_s *config, const char *json, const char *var, uint8_t ublox_hw);
 
 /*
 * @brief Save a variable in the configuration to a file
@@ -305,14 +325,18 @@ int config_save_var(struct logger_config_s *config, const char *filename, const 
 * @param json The JSON string to save the variable from
 * @param var The variable to save
 */
-int config_save_var_b(struct logger_config_s *config, const char *filename, const char * filename_b, const char *json, uint8_t ublox_hw);
+int config_save_var_b(struct logger_config_s *config, const char *json, uint8_t ublox_hw);
+
+esp_err_t config_set_screen_cb(logger_config_t * config, void(*cb)(const char *));
 
 logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
-int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
+int set_gps_cfg_item(logger_config_t *config, int num, uint8_t ublox_hw);
 logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
-int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
+int set_stat_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw);
 logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
-int set_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw);
+int set_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw);
+logger_config_item_t * get_fw_update_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item);
+int set_fw_update_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw);
 #ifdef __cplusplus
 }
 #endif

@@ -16,9 +16,20 @@
 #include "config_events.h"
 #include "logger_config_private.h"
 #include "logger_common.h"
+#include "vfs_fat_sdspi.h"
+#if defined(CONFIG_USE_FATFS)
+#include "vfs_fat_spiflash.h"
+#endif
 
 static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
+#define CFG_FILE_NAME "config.txt";
+#define CFG_FILE_NAME_BACKUP "config.txt.bak";
+#define CFG_FILE_NAME_DEFAULT "default.json";
+
+static const char * config_file_path = 0;
+static const char * config_file_backup_path = 0;
+static const char * config_file_default_path = 0;
 
 #define lengthof(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -32,21 +43,26 @@ ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 
 #define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
 #define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_alfa) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
-#define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(NoveNove) l(Mistral) l(Goya) l(Patrik) l(Severne) l(Tabou) l(F2) l(RRD)
-#define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(Pryde) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Simmer) l(Naish) l(Severne) l(NorthSails) l(RRD)
+
+#define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
+#define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
+
 #define SPEED_UNIT_ITEM_LIST(l) l(m/s) l(km/h) l(knots)
 #define SAMPLE_RATE_ITEM_LIST(l) l(1 Hz) l(5 Hz) l(10 Hz) l(16 Hz) l(20 Hz)
 #define SCREEN_ROTATION_ITEM_LIST(l) l(0_deg) l(90_deg) l(180_deg) l(270_deg)
+#define FW_UPDATE_CHANNEL_ITEM_LIST(l) l(stable) l(unstable)
 
 #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
 #define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(screen_move_offset) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
 #define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(file_date_time) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(ubx_file) l(sleep_info) l(hostname)
 
 const char * const config_stat_screen_items[] = { STAT_SCREEN_ITEM_LIST(STRINGIFY) };
 const char * const config_speed_field_items[] = { SPEED_FIELD_ITEM_LIST(STRINGIFY) };
 const char * const config_screen_items[] = { CFG_SCREEN_ITEM_LIST(STRINGIFY) };
+const char * const config_fw_update_items[] = { CFG_FW_UPDATE_ITEM_LIST(STRINGIFY) };
 const char * const config_gps_items[] = { CFG_GPS_ITEM_LIST(STRINGIFY) };
-const char * config_item_names = ADD_QUOTE(CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
+const char * config_item_names = ADD_QUOTE(CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_FW_UPDATE_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
 const char * config_item_names_compat = "Stat_screens|Stat_screens_time|GPIO12_screens|Board_Logo|board_Logo|sail_Logo|Sail_Logo|logTXT|logSBP|logUBX|logUBX_nav_sat|logGPY|logGPX|UBXfile|Sleep_info|";
 
 const char * const board_logos[] = {BOARD_LOGO_ITEM_LIST(STRINGIFY)};
@@ -54,7 +70,42 @@ const char * const sail_logos[] = {SAIL_LOGO_ITEM_LIST(STRINGIFY)};
 const char * const speed_units[] = {SPEED_UNIT_ITEM_LIST(STRINGIFY)};
 const char * const sample_rates[] = {SAMPLE_RATE_ITEM_LIST(STRINGIFY)};
 const char * const screen_rotations[] = {SCREEN_ROTATION_ITEM_LIST(STRINGIFY)};
+const char * const channels[] = {FW_UPDATE_CHANNEL_ITEM_LIST(STRINGIFY)};
 const char * const not_set = "not set";
+
+logger_config_item_t * get_fw_update_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
+    assert(config);
+    if(!item) return 0;
+    item->name = config_fw_update_items[num];
+    item->pos = num;
+    if(!strcmp(item->name, "update_channel")) {
+        item->value = config->fwupdate.channel;
+        item->desc = channels[config->fwupdate.channel];
+    }
+    else if(!strcmp(item->name, "update_enabled")) {
+        item->value = config->fwupdate.update_enabled;
+        item->desc = config->fwupdate.update_enabled ? "yes" : "no";
+    }
+    return item;
+}
+
+int set_fw_update_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
+    assert(config);
+    if(num>=2) return 0;
+    const char *name = config_fw_update_items[num];
+    xSemaphoreTake(c_sem_lock, portMAX_DELAY);
+    uint16_t val = config->fwupdate.channel;
+    if(!strcmp(name, "update_channel")) {
+        if(config->fwupdate.channel == 1) config->fwupdate.channel = 0;
+        else config->fwupdate.channel++;
+    }
+    else if(!strcmp(name, "update_enabled")) {
+        config->fwupdate.update_enabled = config->fwupdate.update_enabled ? 0 : 1;
+    }
+    config_save_json(config, ublox_hw);
+    xSemaphoreGive(c_sem_lock);
+    return 1;
+}
 
 logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
@@ -68,7 +119,7 @@ logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, i
     return item;
 }
 
-int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+int set_stat_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_STAT_FIELDS) return 0;
     //const char *name = config_gps_items[num];
@@ -81,7 +132,7 @@ int set_stat_screen_cfg_item(logger_config_t * config, int num, const char * fil
     ESP_LOGI(TAG, "[%s] set stat_screens:%hu", __func__, val);
     if(val!=config->screen.stat_screens) {
         config->screen.stat_screens = val;
-        config_save_json(config, filename, filename_b, ublox_hw);
+        config_save_json(config, ublox_hw);
     }
     xSemaphoreGive(c_sem_lock);
     return 1;
@@ -138,7 +189,7 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
     return item;
 }
 
-int set_screen_cfg_item(logger_config_t * config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+int set_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_SCREEN_FIELDS) return 0;
     const char *name = config_screen_items[num];
@@ -169,7 +220,7 @@ int set_screen_cfg_item(logger_config_t * config, int num, const char * filename
             config->screen.screen_rotation++;
         }
     }
-    config_save_json(config, filename, filename_b, ublox_hw);
+    config_save_json(config, ublox_hw);
     xSemaphoreGive(c_sem_lock);
     return 1;
 }
@@ -269,7 +320,7 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
     return item;
 }
 
-int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, const char * filename_b, uint8_t ublox_hw) {
+int set_gps_cfg_item(logger_config_t *config, int num, uint8_t ublox_hw) {
     assert(config);
     if(num>=L_CONFIG_GPS_FIELDS) return 0;
     const char *name = config_gps_items[num];
@@ -315,7 +366,7 @@ int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, co
         else if(config->gps.dynamic_model == 2) config->gps.dynamic_model = 1;
         else config->gps.dynamic_model = 0;
     }
-    config_save_json(config, filename, filename_b, ublox_hw);
+    config_save_json(config, ublox_hw);
     xSemaphoreGive(c_sem_lock);
     return 1;
 }
@@ -323,6 +374,12 @@ int set_gps_cfg_item(logger_config_t *config, int num, const char * filename, co
 logger_config_t *config_new() {
     logger_config_t * c = calloc(1, sizeof(logger_config_t));
     return config_init(c);
+}
+
+esp_err_t config_set_screen_cb(logger_config_t * config, void(*cb)(const char *)) {
+    if(!config) return ESP_ERR_INVALID_ARG;
+    config->config_changed_screen_cb = cb;
+    return ESP_OK;
 }
 
 void config_delete(logger_config_t *config) {
@@ -334,13 +391,38 @@ logger_config_t *config_init(logger_config_t *config) {
     memcpy(config, &cf, sizeof(logger_config_t));
     if(!c_sem_lock)
         c_sem_lock = xSemaphoreCreateRecursiveMutex();
+    if(sdcard_is_mounted()) {
+        config_file_path = CONFIG_SD_MOUNT_POINT"/"CFG_FILE_NAME;
+        config_file_backup_path = CONFIG_SD_MOUNT_POINT"/"CFG_FILE_NAME_BACKUP;
+        config_file_default_path = CONFIG_SD_MOUNT_POINT"/"CFG_FILE_NAME_DEFAULT;
+    } else 
+#if defined(CONFIG_USE_FATFS)
+    if(fatfs_is_mounted()) { // first choice is internal fat partition
+        config_file_path = CONFIG_FATFS_MOUNT_POINT"/"CFG_FILE_NAME;
+        config_file_backup_path = CONFIG_FATFS_MOUNT_POINT"/"CFG_FILE_NAME_BACKUP;
+        config_file_default_path = CONFIG_FATFS_MOUNT_POINT"/"CFG_FILE_NAME_DEFAULT;
+    } else 
+#endif
+#if defined(CONFIG_USE_LITTLEFS)
+    if(littlefs_is_mounted()) {
+        config_file_path = CONFIG_LITTLEFS_MOUNT_POINT"/"CFG_FILE_NAME;
+        config_file_backup_path = CONFIG_LITTLEFS_MOUNT_POINT"/"CFG_FILE_NAME_BACKUP;
+        config_file_default_path = CONFIG_LITTLEFS_MOUNT_POINT"/"CFG_FILE_NAME_DEFAULT;
+    } else 
+#endif
+    {
+        ESP_LOGE(TAG, "No filesystem mounted");
+        return 0;
+    }
     esp_event_post(CONFIG_EVENT, LOGGER_CONFIG_EVENT_CONFIG_INIT_DONE, config, sizeof(logger_config_t), portMAX_DELAY);
     return config;
 }
 
 void config_deinit(logger_config_t *config) {
-    if(c_sem_lock)
+    if(c_sem_lock){
         vSemaphoreDelete(c_sem_lock);
+        c_sem_lock = 0;
+    }
 }
 
 logger_config_t *config_defaults(logger_config_t *config) {
@@ -372,7 +454,9 @@ JsonNode *config_parse(const char *json) {
 }
 
 int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t force) {
-    ILOG(TAG,"[%s] name: %s",__func__, str);
+#if (CONFIG_LOGGER_CONFIG_LOG_LEVEL < 2)
+    ILOG(TAG,"[%s] name: %s",__func__, str ? str : "-");
+#endif
     if (!root) {
         return -1;
     }
@@ -618,6 +702,24 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             changed = 1;
         }
 
+    } else if (!strcmp(var, "update_enabled")) {
+        if (!value || value->tag != JSON_NUMBER) {
+            goto err;
+        }
+        uint8_t val = value->data.number_;
+        if (force || val != config->fwupdate.update_enabled) {
+            config->fwupdate.update_enabled = val;
+            changed = 1;
+        }
+    } else if (!strcmp(var, "update_channel")) {
+        if (!value || value->tag != JSON_NUMBER) {
+            goto err;
+        }
+        uint8_t val = value->data.number_;
+        if (force || val != config->fwupdate.channel) {
+            config->fwupdate.channel = val;
+            changed = 1;
+        }
     } else if (!strcmp(var, "log_txt") || !strcmp(var, "logTXT")) {  // switchinf off .txt files
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
@@ -627,7 +729,6 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             config->gps.log_txt = val;
             changed = 1;
         }
-
     } else if (!strcmp(var, "log_ubx") || !strcmp(var, "logUBX")) {  // log to .ubx
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
@@ -782,11 +883,15 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         } */
         changed = -2;
     }
+    if (config->config_changed_screen_cb && changed>0)
+        config->config_changed_screen_cb(var);
     return changed;
 }
 
 int config_set_var(logger_config_t *config, const char *json, const char *var) {
-    ILOG(TAG, "[%s] '%s'", __FUNCTION__, json);
+#if (CONFIG_LOGGER_CONFIG_LOG_LEVEL < 2)
+    ILOG(TAG, "[%s] '%s'", __FUNCTION__, json ? json : var ? var : "-");
+#endif
     JsonNode *root = config_parse(json);
     if (!root) {
         return -1;
@@ -797,22 +902,22 @@ int config_set_var(logger_config_t *config, const char *json, const char *var) {
     return ret;
 }
 
-int config_save_var(struct logger_config_s *config, const char * filename, const char * filename_b, const char *json, const char *var, uint8_t ublox_hw) {
+int config_save_var(struct logger_config_s *config, const char *json, const char *var, uint8_t ublox_hw) {
     ILOG(TAG,"[%s]",__func__);
     IMEAS_START();
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     int ret = config_set_var(config, json, var);
     if (ret > 0) {
-        ret = config_save_json(config, filename, filename_b, ublox_hw);
+        ret = config_save_json(config, ublox_hw);
     }
     xSemaphoreGive(c_sem_lock);
     IMEAS_END(TAG, "[%s] took %llu us", __FUNCTION__);
     return ret;
 }
 
-int config_save_var_b(logger_config_t *config, const char * filename, const char * filename_b, const char *json, uint8_t ublox_hw) {
+int config_save_var_b(logger_config_t *config, const char *json, uint8_t ublox_hw) {
     ILOG(TAG,"[%s]",__func__);
-    return config_save_var(config, filename, filename_b, json, 0, ublox_hw);
+    return config_save_var(config, json, 0, ublox_hw);
 }
 
 esp_err_t config_decode(logger_config_t *config, const char *json) {
@@ -874,6 +979,8 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
         changed = SET_CONF(root, "logGPX");
     changed = SET_CONF(root, "file_date_time");
     changed = SET_CONF(root, "screen_rotation");
+    changed = SET_CONF(root, "update_enabled");
+    changed = SET_CONF(root, "update_channel");
     changed = SET_CONF(root, "timezone");
     changed = SET_CONF(root, "ubx_file");
     if (changed <= -2)
@@ -897,16 +1004,16 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 #undef SET_CONF
 }
 
-esp_err_t config_load_json(logger_config_t *config, const char *filename, const char *filename_backup) {
+esp_err_t config_load_json(logger_config_t *config) {
     ILOG(TAG,"[%s]",__func__);
     IMEAS_START();
     int ret = ESP_OK;
     char *json = 0;
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
-    if ((json = s_read_from_file(filename, CONFIG_SD_MOUNT_POINT))) {
-        ILOG(TAG,"[%s] from %s done",__func__, filename);
-    } else if ((json = s_read_from_file(filename_backup, CONFIG_SD_MOUNT_POINT))) {
-        ILOG(TAG,"[%s] from %s done",__func__, filename_backup);
+    if ((json = s_read_from_file(config_file_path, 0))) {
+        ILOG(TAG,"[%s] from %s done",__func__, config_file_path);
+    } else if ((json = s_read_from_file(config_file_backup_path, 0))) {
+        ILOG(TAG,"[%s] from %s done",__func__, config_file_backup_path);
     } else {
         ESP_LOGE(TAG, "configuration not found...");
         goto done;
@@ -922,7 +1029,7 @@ done:
     return ret;
 }
 
-esp_err_t config_save_json(logger_config_t *config, const char *filename, const char *filename_backup, uint8_t ublox_hw) {
+esp_err_t config_save_json(logger_config_t *config, uint8_t ublox_hw) {
     ILOG(TAG,"[%s]",__func__);
     int ret = ESP_OK;
     strbf_t sb;
@@ -935,8 +1042,8 @@ esp_err_t config_save_json(logger_config_t *config, const char *filename, const 
 #if (CONFIG_LOGGER_CONFIG_LOG_LEVEL <= 1)
     printf("[%s] save json: %s", __FUNCTION__, json);
 #endif
-    s_rename_file(filename, filename_backup, CONFIG_SD_MOUNT_POINT);
-    ret = s_write(filename, CONFIG_SD_MOUNT_POINT, sb.start, sb.cur - sb.start);
+    s_rename_file_n(config_file_path, config_file_backup_path, 1);
+    ret = s_write(config_file_path, 0, sb.start, sb.cur - sb.start);
 done:
     strbf_free(&sb);
     esp_event_post(CONFIG_EVENT, !ret ? LOGGER_CONFIG_EVENT_CONFIG_SAVE_DONE : LOGGER_CONFIG_EVENT_CONFIG_SAVE_FAIL, config, sizeof(logger_config_t), portMAX_DELAY);
@@ -1021,6 +1128,10 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return 32;
         if (config->screen.screen_rotation != orig->screen.screen_rotation)
             return 33;
+        if (config->fwupdate.update_enabled != orig->fwupdate.update_enabled)
+            return 34;
+        if (config->fwupdate.channel != orig->fwupdate.channel)
+            return 35;
         for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=34; i<j; i++,k++) {
             if (strcmp(config->wifi_sta[i].ssid, orig->wifi_sta[i].ssid))
                 return k;
@@ -1031,7 +1142,7 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
     return 0;
 }
 
-char *config_get(logger_config_t *config, const char *name, char *str, size_t *len, size_t max, uint8_t mode, uint8_t ublox_hw) {
+char *config_get(const logger_config_t *config, const char *name, char *str, size_t *len, size_t max, uint8_t mode, const uint8_t ublox_hw) {
     ILOG(TAG, "[%s] %s", __FUNCTION__, name);
     *len = 0;
     if (!config) {
@@ -1276,6 +1387,26 @@ char *config_get(logger_config_t *config, const char *name, char *str, size_t *l
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"how many days files will be moved to the 'Archive' dir\",\"type\":\"int\",\"ext\":\"d\"");
         }
+    } else if (!strcmp(name, "update_enabled")) {  // switchinf off .txt files
+        strbf_putn(&lsb, config->fwupdate.update_enabled);
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"wether to allow automatic firmware updates or not\",\"type\":\"bool\"");
+        }
+    } else if (!strcmp(name, "update_channel")) {  // switchinf off .txt files
+        strbf_putn(&lsb, config->fwupdate.channel);
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"automatic firmware update channel\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = lengthof(channels); i < j; i++) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, channels[i]);
+                strbf_puts(&lsb, "\"}");
+                if(i < j-1) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
+        }
     } else if (!strcmp(name, "log_txt")||!strcmp(name, "logTXT")) {  // switchinf off .txt files
         strbf_putn(&lsb, config->gps.log_txt);
         if (mode) {
@@ -1465,6 +1596,8 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
         CONF_GET(&password[0]);
     }
     CONF_GET("sleep_info");
+    CONF_GET("update_enabled");
+    CONF_GET("update_channel");
     CONF_GETC("screen_rotation");
     
     strbf_puts(sb, "\n}\n");
