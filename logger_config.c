@@ -475,15 +475,21 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
         var = str;
     }
     if (!var) {
+#if CONFIG_LOGGER_CONFIG_LOG_LEVEL < 3
         printf("[%s] ! var\n", __FUNCTION__);
+#endif
         goto err;
     }
     if (!strstr(config_item_names, var) && !strstr(config_item_names_compat, var)) {
+#if CONFIG_LOGGER_CONFIG_LOG_LEVEL < 3
         printf("[%s] ! in names\n", __FUNCTION__);
+#endif
         goto err;
     }
     if (!value) {
+#if CONFIG_LOGGER_CONFIG_LOG_LEVEL < 3
         printf("[%s] ! value\n", __FUNCTION__);
+#endif
         goto err;
     }
     if (name || str)

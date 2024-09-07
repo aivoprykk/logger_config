@@ -1,7 +1,7 @@
 menu "Logger Config Module Options"
     choice
         bool "Default log verbosity"
-        default LOGGER_CONFIG_LOG_LEVEL_WARN
+        default LOGGER_CONFIG_LOG_LEVEL_ERROR
         help
             Specify how important log should be added.
         config LOGGER_CONFIG_LOG_LEVEL_TRACE
