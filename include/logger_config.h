@@ -135,9 +135,15 @@ typedef struct logger_config_fwupdate_c {
     fw_update_channel_t channel;
 } logger_config_fwupdate_t;
 
+#if defined(CONFIG_LOGGER_BUILD_MODE_DEV)
+#define CFG_CHANNEL FW_UPDATE_CHANNEL_DEV
+#else
+#define CFG_CHANNEL FW_UPDATE_CHANNEL_PROD
+#endif
+
 #define LOGGER_CONFIG_FWUPDATE_DEFAULTS() { \
     .update_enabled = true, \
-    .channel = FW_UPDATE_CHANNEL_PROD, \
+    .channel = CFG_CHANNEL, \
 }
 
 #define L_CONFIG_SSID_MAX 4
