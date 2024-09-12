@@ -1207,7 +1207,7 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
             strbf_puts(&lsb, ",\"info\":\"gps_rate in Hz\",\"type\":\"int\"");
             strbf_puts(&lsb,",\"values\":[");
             for(uint8_t i = 0, j = 5, k; i < j; i++) {
-                k = (i==2) ? (i+1)*5+1 : (i > 0) ? (i+1)*5 : 1;
+                k = (i==3) ? (i)*5+1 : (i > 0) ? (i)*5 : 1;
                 strbf_puts(&lsb, "{\"value\":");
                 strbf_putn(&lsb, k);
                 strbf_puts(&lsb, ",\"title\":\"");
