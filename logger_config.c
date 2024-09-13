@@ -31,18 +31,10 @@ static const char * config_file_path = 0;
 static const char * config_file_backup_path = 0;
 static const char * config_file_default_path = 0;
 
-#define lengthof(x) (sizeof(x) / sizeof((x)[0]))
-
 ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 
-#define STRINGIFY_(x) #x
-#define STRINGIFY(x) STRINGIFY_(x),
-#define A_
-#define ADD(x) x|A_
-#define ADD_QUOTE(x) STRINGIFY_(x)
-
 #define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
-#define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_alfa) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
+#define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_a500) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
 
 #define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
@@ -1223,10 +1215,10 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\" default ");
             if (ublox_hw >= UBX_TYPE_M9) {
-                strbf_puts(&lsb, "4 gnss: GPS(us) + GALILEO(eu) + BEIDOU(cn) + GLONASS(ru), also SBAS(us) and QZSS(jp) augmentation services enabled by default.");
+                strbf_puts(&lsb, "For M9 default 4 gnss: GPS(G) + GALILEO(E) + BEIDOU(B) + GLONASS(R)");
             }
             else {
-                strbf_puts(&lsb, "3 gnss: GPS + GALILEO + GLONASS");
+                strbf_puts(&lsb, "For M10 default 3 gnss: GPS(G) + GALILEO(B) + GLONASS(R)");
             }
             strbf_puts(&lsb, "\",\"type\":\"int\",\"values\":[");
             strbf_puts(&lsb, "{\"value\":39,\"title\":\"GPS(G) + GALILEO(E)\"},");
@@ -1295,7 +1287,8 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : activate / deactivate screens to show.\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"toggles\":[");
-            for(uint8_t i= 0, j = 1, k = lengthof(config_stat_screen_items); i < k; i++, j <<= 1) {
+            uint16_t j = 1;
+            for(uint8_t i= 0, k = lengthof(config_stat_screen_items); i < k; i++, j <<= 1) {
                 strbf_puts(&lsb, "{\"pos\":");
                 strbf_putn(&lsb, i);
                 strbf_puts(&lsb, ",\"title\":\"");
