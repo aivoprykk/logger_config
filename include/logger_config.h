@@ -5,16 +5,45 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <json.h>
+#include "logger_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// extern const char * const config_speed_field_items[];
+// extern const char * const config_stat_screen_items[];
+// extern const char * const config_screen_items[];
+// extern const char * const config_gps_items[];
+// extern const char * const config_fw_update_items[];
+
+// configuration item names in char array
+extern const char * const config_items[];
+
+// configuration item names in | separated string
 extern const char *config_item_names;
-extern const char * const config_speed_field_item_names[];
-extern const char * const config_stat_screen_item_names[];
-extern const char * const config_screen_item_names[];
-extern const char * const config_gps_item_names[];
+
+#if defined(CUSTOM_CALIBRATION_VAL)
+#define CFG_CALIBRATION_ITEM_LIST(l) l(cal_bat)
+#else
+#define CFG_CALIBRATION_ITEM_LIST(l)
+#endif
+
+#define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(screen_move_offset) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
+#define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(file_date_time) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(ubx_file) l(sleep_info) l(hostname)
+
+#define CFG_ENUM(l) cfg_##l,
+
+// configuration items in enum
+typedef enum {
+    CFG_CALIBRATION_ITEM_LIST(CFG_ENUM)
+    CFG_GPS_ITEM_LIST(CFG_ENUM)
+    CFG_SCREEN_ITEM_LIST(CFG_ENUM)
+    CFG_FW_UPDATE_ITEM_LIST(CFG_ENUM)
+    CFG_ITEM_LIST(CFG_ENUM)
+} config_item_t;
 
 typedef struct logger_config_item_s {
     const char * name;
@@ -99,13 +128,28 @@ typedef struct logger_config_stat_screens_s {
     .stat_avg_a500 = 0, \
 }
 
+#if !defined(SCR_DEFAULT_ROTATION)
+#if defined(CONFIG_DISPLAY_DRIVER_ST7789)
+#define SCR_DEFAULT_ROTATION 2 // 270deg
+#else
+#define SCR_DEFAULT_ROTATION 1 // 90deg
+#endif
+#endif
+#if !defined(SCR_AUTO_REFRESH)
+#if defined(CONFIG_DISPLAY_DRIVER_ST7789)
+#define SCR_AUTO_REFRESH1(1)
+#else
+#define SCR_AUTO_REFRESH (0)
+#endif
+#endif
+
 typedef struct logger_config_screen_s {
     uint8_t speed_field;             // choice for first field in speed screen !!!
     uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
     uint8_t stat_screens_time;       // time between switching stat_screens
     uint8_t board_logo;
     uint8_t sail_logo;
-    uint8_t screen_rotation;
+    int8_t screen_rotation;
     uint8_t screen_no_auto_refresh;
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
     uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
@@ -119,8 +163,8 @@ typedef struct logger_config_screen_s {
     .board_logo = 1, \
     .sail_logo = 1, \
     .stat_speed = 1, \
-    .screen_rotation = 1, \
-    .screen_no_auto_refresh = false, \
+    .screen_rotation = SCR_DEFAULT_ROTATION, \
+    .screen_no_auto_refresh = !SCR_AUTO_REFRESH, \
     .stat_screens = 255U, \
     .gpio12_screens = 255U, \
 }
