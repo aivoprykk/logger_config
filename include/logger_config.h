@@ -16,9 +16,15 @@ extern "C" {
 // extern const char * const config_screen_items[];
 // extern const char * const config_gps_items[];
 // extern const char * const config_fw_update_items[];
+extern const size_t config_speed_field_item_count;
+extern const size_t config_stat_screen_item_count;
+extern const size_t config_screen_item_count;
+extern const size_t config_gps_item_count;
+extern const size_t config_fw_update_item_count;
 
 // configuration item names in char array
 extern const char * const config_items[];
+extern const size_t config_item_count;
 
 // configuration item names in | separated string
 extern const char *config_item_names;
@@ -30,7 +36,14 @@ extern const char *config_item_names;
 #endif
 
 #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
-#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(screen_move_offset) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CGG_SCREEN_ITEM_ROTATION_POS (5)
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
+#define CFG_SCREEN_ITEM_LIST_A(l) l(screen_move_offset)
+#else
+#define CFG_SCREEN_ITEM_LIST_A(l) l(screen_brightness)
+#define CGG_SCREEN_ITEM_BRIGHTNESS_POS (CGG_SCREEN_ITEM_ROTATION_POS+1)
+#endif
 #define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
 #define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(file_date_time) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(ubx_file) l(sleep_info) l(hostname)
 
@@ -41,6 +54,7 @@ typedef enum {
     CFG_CALIBRATION_ITEM_LIST(CFG_ENUM)
     CFG_GPS_ITEM_LIST(CFG_ENUM)
     CFG_SCREEN_ITEM_LIST(CFG_ENUM)
+    CFG_SCREEN_ITEM_LIST_A(CFG_ENUM)
     CFG_FW_UPDATE_ITEM_LIST(CFG_ENUM)
     CFG_ITEM_LIST(CFG_ENUM)
 } config_item_t;
@@ -63,9 +77,8 @@ typedef struct logger_config_gps_s {
     uint8_t log_gpx;          // log to .gpx
     uint8_t log_ubx_nav_sat;  // log nav sat msg to .ubx
     uint8_t dynamic_model;    // choice for dynamic model "Sea",if 0 model "portable" is used !!
-    uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
 } logger_config_gps_t;
-#define L_CONFIG_GPS_FIELDS sizeof(struct logger_config_gps_s)
+// #define L_CONFIG_GPS_FIELDS sizeof(struct logger_config_gps_s)
 #define LOGGER_CONFIG_GPS_DEFAULTS() { \
     .gnss = 111, \
     .sample_rate = 10, \
@@ -77,7 +90,6 @@ typedef struct logger_config_gps_s {
     .log_gpx = false, \
     .log_ubx_nav_sat = false, \
     .dynamic_model = 0, \
-    .bar_length = 1852, \
 }
 
 typedef struct logger_config_speed_field_s {
@@ -115,7 +127,7 @@ typedef struct logger_config_stat_screens_s {
     uint8_t stat_stat1;
     uint8_t stat_avg_a500;
 } logger_config_stat_screens_t;
-#define L_CONFIG_STAT_FIELDS sizeof(struct logger_config_stat_screens_s)
+// #define L_CONFIG_STAT_FIELDS sizeof(struct logger_config_stat_screens_s)
 #define LOGGER_CONFIG_STAT_SCREENS_DEFAULTS() { \
     .stat_10_sec = 1, \
     .stat_2_sec = 1, \
@@ -137,7 +149,7 @@ typedef struct logger_config_stat_screens_s {
 #endif
 #if !defined(SCR_AUTO_REFRESH)
 #if defined(CONFIG_DISPLAY_DRIVER_ST7789)
-#define SCR_AUTO_REFRESH1(1)
+#define SCR_AUTO_REFRESH (1)
 #else
 #define SCR_AUTO_REFRESH (0)
 #endif
@@ -155,7 +167,7 @@ typedef struct logger_config_screen_s {
     uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
     uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
 } logger_config_screen_t;
-#define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
+// #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
 #define LOGGER_CONFIG_SCREEN_DEFAULTS() { \
     .speed_field = 1, \
     .speed_large_font = 0, \
@@ -205,6 +217,8 @@ typedef struct logger_config_s {
     uint8_t config_fail;
     int8_t  screen_move_offset;
     uint8_t speed_field_count;
+    uint16_t bar_length;      // choice for bar indicator for length of run in m (nautical mile)
+    uint8_t screen_brightness;
 
     uint16_t archive_days;    // how many days files will be moved to the "Archive" dir
  
@@ -225,6 +239,8 @@ typedef struct logger_config_s {
     .config_fail = 0, \
     .screen_move_offset = 1, \
     .speed_field_count = L_CONFIG_SPEED_FIELDS, \
+    .bar_length = 1852, \
+    .screen_brightness = 100, \
     .archive_days = 30, \
     .timezone = 2, \
     .ubx_file = "gps", \

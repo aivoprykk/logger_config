@@ -44,24 +44,25 @@ ESP_EVENT_DEFINE_BASE(CONFIG_EVENT);
 #define FW_UPDATE_CHANNEL_ITEM_LIST(l) l(stable) l(unstable)
 
 const char * const config_stat_screen_items[] = { STAT_SCREEN_ITEM_LIST(STRINGIFY) };
+const size_t config_stat_screen_item_count = sizeof(config_stat_screen_items) / sizeof(config_stat_screen_items[0]);
 const char * const config_speed_field_items[] = { SPEED_FIELD_ITEM_LIST(STRINGIFY) };
-const char * const config_screen_items[] = { CFG_SCREEN_ITEM_LIST(STRINGIFY) };
+const size_t config_speed_field_item_count = sizeof(config_speed_field_items) / sizeof(config_speed_field_items[0]);
+const char * const config_screen_items[] = { CFG_SCREEN_ITEM_LIST(STRINGIFY) CFG_SCREEN_ITEM_LIST_A(STRINGIFY) };
+const size_t config_screen_item_count = sizeof(config_screen_items) / sizeof(config_screen_items[0]);
 const char * const config_fw_update_items[] = { CFG_FW_UPDATE_ITEM_LIST(STRINGIFY) };
+const size_t config_fw_update_item_count = sizeof(config_fw_update_items) / sizeof(config_fw_update_items[0]);
 const char * const config_gps_items[] = { CFG_GPS_ITEM_LIST(STRINGIFY) };
+const size_t config_gps_item_count = sizeof(config_gps_items) / sizeof(config_gps_items[0]);
 const char * const config_items[] = { 
-#if defined(CUSTOM_CALIBRATION_VAL)
     CFG_CALIBRATION_ITEM_LIST(STRINGIFY)
-#endif
     CFG_GPS_ITEM_LIST(STRINGIFY)
     CFG_SCREEN_ITEM_LIST(STRINGIFY) 
+    CFG_SCREEN_ITEM_LIST_A(STRINGIFY)
     CFG_FW_UPDATE_ITEM_LIST(STRINGIFY) 
     CFG_ITEM_LIST(STRINGIFY)
 };
-#if defined(CUSTOM_CALIBRATION_VAL)
-const char * config_item_names = ADD_QUOTE(CFG_CALIBRATION_ITEM_LIST(ADD) CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_FW_UPDATE_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
-#else
-const char * config_item_names = ADD_QUOTE(CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_FW_UPDATE_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
-#endif
+const size_t config_item_count = sizeof(config_items) / sizeof(config_items[0]);
+const char * config_item_names = ADD_QUOTE(CFG_CALIBRATION_ITEM_LIST(ADD) CFG_GPS_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST_A(ADD) CFG_FW_UPDATE_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
 const char * config_item_names_compat = "Stat_screens|Stat_screens_time|GPIO12_screens|Board_Logo|board_Logo|sail_Logo|Sail_Logo|logTXT|logSBP|logUBX|logUBX_nav_sat|logGPY|logGPX|UBXfile|Sleep_info|";
 
 const char * const board_logos[] = {BOARD_LOGO_ITEM_LIST(STRINGIFY)};
@@ -109,7 +110,7 @@ int set_fw_update_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) 
 logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
     assert(config);
     if(!item) return 0;
-    if(num>=0 && num<lengthof(config_stat_screen_items)) {
+    if(num>=0 && num<config_stat_screen_item_count) {
         item->name = config_stat_screen_items[num];
         item->pos = num;
         item->value = (config->screen.stat_screens & (1 << num)) ? 1 : 0;
@@ -120,12 +121,12 @@ logger_config_item_t * get_stat_screen_cfg_item(const logger_config_t *config, i
 
 int set_stat_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
     assert(config);
-    if(num>=L_CONFIG_STAT_FIELDS) return 0;
+    if(num>=config_stat_screen_item_count) return 0;
     //const char *name = config_gps_items[num];
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     uint16_t val = config->screen.stat_screens;
     ESP_LOGI(TAG, "[%s]: %d stat_screens:%hu", __func__, num, val);
-    if(num>=0 && num<lengthof(config_stat_screen_items)) {
+    if(num>=0 && num<config_stat_screen_item_count) {
         val ^= (1 << num);
     }
     ESP_LOGI(TAG, "[%s] set stat_screens:%hu", __func__, val);
@@ -143,7 +144,7 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
     item->pos = num;
     if(!strcmp(item->name, config_items[cfg_speed_field])) {
         item->value = config->screen.speed_field;
-        if(config->screen.speed_field > 0 && config->screen.speed_field <= lengthof(config_speed_field_items))
+        if(config->screen.speed_field > 0 && config->screen.speed_field <= config_speed_field_item_count)
             item->desc = config_speed_field_items[config->screen.speed_field-1];
         else
             item->desc = not_set;
@@ -162,9 +163,15 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
     } else if(!strcmp(item->name, config_items[cfg_stat_screens])) {
         item->value = config->screen.stat_screens;
         item->desc = "menu";
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
     } else if(!strcmp(item->name, config_items[cfg_screen_move_offset])) {
         item->value = config->screen_move_offset ? 1 : 0;
         item->desc = config->screen_move_offset ? "on" : "off";
+#else
+    } else if(!strcmp(item->name, config_items[cfg_screen_brightness])) {
+        item->value = config->screen_brightness;
+        item->desc = item->value <= 20 ? "20" : item->value <= 40 ? "40" : item->value <= 60 ? "60" : item->value == 80 ? "80" : "100" ;
+#endif
     } else if(!strcmp(item->name, config_items[cfg_board_logo])) {
         item->value = config->screen.board_logo;
         if(config->screen.board_logo > 0 && config->screen.board_logo <= lengthof(board_logos))
@@ -190,26 +197,42 @@ logger_config_item_t * get_screen_cfg_item(const logger_config_t *config, int nu
 
 int set_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
     assert(config);
-    if(num>=L_CONFIG_SCREEN_FIELDS) return 0;
+    if(num>=config_screen_item_count) return 0;
     const char *name = config_screen_items[num];
+    int ret = 0;
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     if(!strcmp(name, config_items[cfg_speed_field])) {
         if(config->screen.speed_field == 9) config->screen.speed_field = 1;
         else config->screen.speed_field++;
+        ret = cfg_speed_field;
     } else if(!strcmp(name, config_items[cfg_stat_screens_time])) {
         if(config->screen.stat_screens_time == 5) config->screen.stat_screens_time = 4;
         else if(config->screen.stat_screens_time == 4) config->screen.stat_screens_time = 3;
         else if(config->screen.stat_screens_time == 3) config->screen.stat_screens_time = 2;
         else if(config->screen.stat_screens_time == 2) config->screen.stat_screens_time = 1;
         else config->screen.stat_screens_time = 5;
+        ret = cfg_stat_screens_time;
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
     } else if (!strcmp(name, config_items[cfg_screen_move_offset])) {
         config->screen_move_offset = config->screen_move_offset ? 0 : 1;
+        ret = cfg_screen_move_offset;
+#else
+    } else if (!strcmp(name, config_items[cfg_screen_brightness])) {
+        if(config->screen_brightness == 100) config->screen_brightness = 80;
+        else if(config->screen_brightness == 80) config->screen_brightness = 60;
+        else if(config->screen_brightness == 60) config->screen_brightness = 40;
+        else if(config->screen_brightness == 40) config->screen_brightness = 20;
+        else config->screen_brightness = 100;
+        ret = cfg_screen_brightness;
+#endif
     } else if(!strcmp(name, config_items[cfg_board_logo])) {
         if(config->screen.board_logo >= 11) config->screen.board_logo = 1;
         else config->screen.board_logo++;
+        ret = cfg_board_logo;
     } else if(!strcmp(name, config_items[cfg_sail_logo])) {
         if(config->screen.sail_logo >= 12) config->screen.sail_logo = 1;
         else config->screen.sail_logo++;
+        ret = cfg_sail_logo;
     }
     else if(!strcmp(name, config_items[cfg_screen_rotation])) {
         if(config->screen.screen_rotation >= 3) {
@@ -218,10 +241,11 @@ int set_screen_cfg_item(logger_config_t * config, int num, uint8_t ublox_hw) {
         else {
             config->screen.screen_rotation++;
         }
+        ret = cfg_screen_rotation;
     }
     config_save_json(config, ublox_hw);
     xSemaphoreGive(c_sem_lock);
-    return 1;
+    return ret;
 }
 
 logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, logger_config_item_t *item) {
@@ -321,7 +345,7 @@ logger_config_item_t * get_gps_cfg_item(const logger_config_t *config, int num, 
 
 int set_gps_cfg_item(logger_config_t *config, int num, uint8_t ublox_hw) {
     assert(config);
-    if(num>=L_CONFIG_GPS_FIELDS) return 0;
+    if(num>=config_gps_item_count) return 0;
     const char *name = config_gps_items[num];
     xSemaphoreTake(c_sem_lock, portMAX_DELAY);
     if (!strcmp(name, "gnss")) {
@@ -643,7 +667,7 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
     //         config->screen.gpio12_screens_persist = val;
     //         changed = 1;
     //     }
-
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
     } else if (!strcmp(var, config_items[cfg_screen_move_offset])) {
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
@@ -653,7 +677,17 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             config->screen_move_offset = val;
             changed = cfg_screen_move_offset;
         }
-
+#else
+    } else if (!strcmp(var, config_items[cfg_screen_brightness])) {  // max speed in m/s for showing Stat screens
+        if (!value || value->tag != JSON_NUMBER) {
+            goto err;
+        }
+        uint8_t val = value->data.number_;
+        if (force || val != config->screen_brightness) {
+            config->screen_brightness = val;
+            changed = cfg_screen_brightness;
+        }
+#endif
     } else if (!strcmp(var, config_items[cfg_file_date_time])) {
     } else if (!strcmp(var, config_items[cfg_board_logo]) || !strcmp(var, "board_Logo") || !strcmp(var, "Board_Logo")) {
         if (!value || value->tag != JSON_NUMBER) {
@@ -684,15 +718,14 @@ int config_set(logger_config_t *config, JsonNode *root, const char *str, uint8_t
             config->screen.stat_speed = val;
             changed = cfg_stat_speed;
         }
-
     } else if (!strcmp(var, config_items[cfg_bar_length])) {  // choice for bar indicator for length of run in m
         // (nautical mile)
         if (!value || value->tag != JSON_NUMBER) {
             goto err;
         }
         uint16_t val = value->data.number_;
-        if (force || val != config->gps.bar_length) {
-            config->gps.bar_length = val;
+        if (force || val != config->bar_length) {
+            config->bar_length = val;
             changed = cfg_bar_length;
         }
 
@@ -960,7 +993,11 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
     changed = SET_CONF(root, config_items[cfg_gpio12_screens]);
     if (changed <= -2)
         changed = SET_CONF(root, "GPIO12_screens");
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
     changed = SET_CONF(root, config_items[cfg_screen_move_offset]);
+#else
+    changed = SET_CONF(root, config_items[cfg_screen_brightness]);
+#endif
     changed = SET_CONF(root, config_items[cfg_board_logo]);
     if (changed <= -2)
         changed = SET_CONF(root, "board_Logo");
@@ -1085,70 +1122,75 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
         return -3;
     if(orig && config) {
         if (orig->gps.speed_unit != config->gps.speed_unit)
-            return 2;
+            return cfg_speed_unit;
         if (orig->gps.sample_rate != config->gps.sample_rate)
-            return 3;
+            return cfg_sample_rate;
         if (orig->gps.gnss != config->gps.gnss)
-            return 4;
+            return cfg_gnss;
         if (orig->screen.speed_field != config->screen.speed_field)
-            return 5;
+            return cfg_speed_field;
         if (orig->screen.speed_large_font != config->screen.speed_large_font)
-            return 6;
-        if (orig->gps.bar_length != config->gps.bar_length)
-            return 7;
+            return cfg_speed_large_font;
+        if (orig->bar_length != config->bar_length)
+            return cfg_bar_length;
         if (orig->screen.stat_speed != config->screen.stat_speed)
-            return 8;
+            return cfg_stat_speed;
         if (orig->archive_days != config->archive_days)
-            return 9;
+            return cfg_archive_days;
         if (orig->screen.stat_screens_time != config->screen.stat_screens_time)
-            return 10;
+            return cfg_stat_screens_time;
         if (orig->screen.stat_screens != config->screen.stat_screens)
-            return 11;
+            return cfg_stat_screens;
         // if (orig->screen.stat_screens_persist != config->screen.stat_screens_persist)
         //     return 12;
         if (orig->screen.gpio12_screens != config->screen.gpio12_screens)
-            return 13;
+            return cfg_gpio12_screens;
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
         if (orig->screen_move_offset != config->screen_move_offset)
-            return 14;
+            return cfg_screen_move_offset;
+#else
+        if (orig->screen_brightness != config->screen_brightness)
+            return cfg_screen_brightness;
+#endif
         if (orig->screen.board_logo != config->screen.board_logo)
-            return 15;
+            return cfg_board_logo;
         if (orig->screen.sail_logo != config->screen.sail_logo)
-            return 16;
+            return cfg_sail_logo;
         if (orig->gps.log_txt != config->gps.log_txt)
-            return 18;
+            return cfg_log_txt;
         if (orig->gps.log_ubx != config->gps.log_ubx)
-            return 19;
+            return cfg_log_ubx;
         if (orig->gps.log_ubx_nav_sat != config->gps.log_ubx_nav_sat)
-            return 2;
+            return cfg_log_ubx_nav_sat;
         if (orig->gps.log_sbp != config->gps.log_sbp)
-            return 21;
+            return cfg_log_sbp;
         if (orig->gps.log_gpy != config->gps.log_gpy)
-            return 22;
+            return cfg_log_gpy;
         if (orig->file_date_time != config->file_date_time)
-            return 23;
+            return cfg_file_date_time;
         if (orig->gps.dynamic_model != config->gps.dynamic_model)
-            return 24;
+            return cfg_dynamic_model;
         if (orig->timezone != config->timezone)
-            return 25;
+            return cfg_timezone;
         if (strcmp(config->ubx_file, orig->ubx_file))
-            return 26;
+            return cfg_ubx_file;
         if (strcmp(config->sleep_info, orig->sleep_info))
-            return 27;
-        if (orig->speed_field_count != config->speed_field_count)
-            return 30;
+            return cfg_sleep_info;
         if (strcmp(config->hostname, orig->hostname))
-            return 32;
+            return cfg_hostname;
+        if (orig->speed_field_count != config->speed_field_count)
+            return cfg_hostname+1;
         if (config->screen.screen_rotation != orig->screen.screen_rotation)
-            return 33;
+            return cfg_screen_rotation;
         if (config->fwupdate.update_enabled != orig->fwupdate.update_enabled)
-            return 34;
+            return cfg_update_enabled;
         if (config->fwupdate.channel != orig->fwupdate.channel)
-            return 35;
-        for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=34; i<j; i++,k++) {
+            return cfg_update_channel;
+        for(uint8_t i=0,j=L_CONFIG_SSID_MAX,k=cfg_ssid; i<j; i++,k+=2) {
             if (strcmp(config->wifi_sta[i].ssid, orig->wifi_sta[i].ssid))
                 return k;
             if (strcmp(config->wifi_sta[i].password, orig->wifi_sta[i].password))
-                return k+5;
+                return k+1;
         }
     }
     return 0;
@@ -1251,7 +1293,7 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"choice for first field in speed screen\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"values\":[");
-            for(uint8_t i = 0, j = lengthof(config_speed_field_items); i < j; i++) {
+            for(uint8_t i = 0, j = config_speed_field_item_count; i < j; i++) {
                 strbf_puts(&lsb, "{\"value\":");
                 strbf_putn(&lsb, i+1);
                 strbf_puts(&lsb, ",\"title\":\"");
@@ -1302,7 +1344,7 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
             strbf_puts(&lsb, ",\"info\":\"Stat_screens choice : activate / deactivate screens to show.\",\"type\":\"int\"");
             strbf_puts(&lsb, ",\"toggles\":[");
             uint16_t j = 1;
-            for(uint8_t i= 0, k = lengthof(config_stat_screen_items); i < k; i++, j <<= 1) {
+            for(uint8_t i= 0, k = config_stat_screen_item_count; i < k; i++, j <<= 1) {
                 strbf_puts(&lsb, "{\"pos\":");
                 strbf_putn(&lsb, i);
                 strbf_puts(&lsb, ",\"title\":\"");
@@ -1349,11 +1391,29 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
     //     if (mode) {
     //         strbf_puts(&lsb, ",\"info\":\"choice for stats field when gpio12 is activated (pull-up high, low = active) / for resave the config\",\"type\":\"int\"");
     //     }
+#if !defined(CONFIG_DISPLAY_DRIVER_ST7789)
     } else if (!strcmp(name, config_items[cfg_screen_move_offset])) {
         strbf_putn(&lsb, config->screen_move_offset);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"move epd sceen content to pervent panel burn\",\"type\":\"bool\"");
         }
+#else
+    } else if (!strcmp(name, config_items[cfg_screen_brightness])) {
+        strbf_putn(&lsb, config->screen_brightness);
+        if (mode) {
+            strbf_puts(&lsb, ",\"info\":\"Display brightness\",\"type\":\"int\"");
+            strbf_puts(&lsb, ",\"values\":[");
+            for(uint8_t i = 0, j = 100, step = 20; i < j; i+=step) {
+                strbf_puts(&lsb, "{\"value\":");
+                strbf_putn(&lsb, i+step);
+                strbf_puts(&lsb, ",\"title\":\"");
+                strbf_puts(&lsb, i==0 ? "20" : i==20 ? "40" : i==40 ? "60" : i==60 ? "80" : "100");
+                strbf_puts(&lsb, "\"}");
+                if(i < j-step) strbf_putc(&lsb, ',');
+            }
+            strbf_puts(&lsb, "]");
+        }
+#endif
     } else if (!strcmp(name, config_items[cfg_board_logo])||!strcmp(name, "board_logo")||!strcmp(name, "Board_Logo")) {
         strbf_putn(&lsb, config->screen.board_logo);
         if (mode) {
@@ -1391,7 +1451,7 @@ char *config_get(const logger_config_t *config, const char *name, char *str, siz
         }
     } else if (!strcmp(name, config_items[cfg_bar_length])) {  // choice for bar indicator for length of run in m
         // (nautical mile)
-        strbf_putn(&lsb, config->gps.bar_length);
+        strbf_putn(&lsb, config->bar_length);
         if (mode) {
             strbf_puts(&lsb, ",\"info\":\"bar_length: Default length = 1852 m for 100% bar (=Nautical mile)\",\"type\":\"int\",\"ext\":\"m\"");
         }
@@ -1556,7 +1616,7 @@ char *config_encode_json(logger_config_t *config, strbf_t *sb, uint8_t ublox_hw)
 
     strbf_puts(sb, "{\n");
 
-    for(int i = 0, j = lengthof(config_items); i < j; i++) {
+    for(int i = 0, j = config_item_count; i < j; i++) {
         if( (i==cfg_password && config->wifi_sta[0].password[0] == 0)
             || (i==cfg_password1 && config->wifi_sta[1].password[0] == 0)
             || (i==cfg_password2 && config->wifi_sta[2].password[0] == 0)
