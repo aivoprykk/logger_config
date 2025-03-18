@@ -2,6 +2,21 @@
 idf_component_register(
     SRCS logger_config.c
     INCLUDE_DIRS "include"
-    REQUIRES ccan_json
-    PRIV_REQUIRES logger_common logger_vfs logger_str logger_ubx
+    REQUIRES logger_common
+    PRIV_REQUIRES strutil
 )
+
+if(CONFIG_GPS_LOG_USE_CJSON)
+    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::json)
+else()
+    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::ccan_json)
+endif()
+if(CONFIG_GPS_LOG_ENABLED)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC idf::gps_log)
+endif()
+if(CONFIG_UBLOX_ENABLED)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC idf::logger_ubx)
+endif()
+if(CONFIG_LOGGER_VFS_ENABLED)
+    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::logger_vfs)
+endif()
