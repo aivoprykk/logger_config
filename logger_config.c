@@ -32,32 +32,33 @@ static char config_file_backup_path[PATH_MAX_CHAR_SIZE] = {0};
 static char config_file_default_path[PATH_MAX_CHAR_SIZE] = {0};
 
 ESP_EVENT_DEFINE_BASE(LOGGER_CONFIG_EVENT);
-
-const char * const logger_config_event_strings[] = {
-    LOGGER_CONFIG_EVENT_LIST(STRINGIFY)
-};
+/// @brief List of logger config event strings
+const char * const logger_config_event_strings[] = {LOGGER_CONFIG_EVENT_LIST(STRINGIFY)};
 
 #define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
 #define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_a500) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
-
 #define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
-
-// #define SPEED_UNIT_ITEM_LIST(l) l(m/s) l(km/h) l(knots)
-// #define SAMPLE_RATE_ITEM_LIST(l) l(1 Hz) l(5 Hz) l(10 Hz) l(16 Hz) l(20 Hz)
 #define SCREEN_ROTATION_ITEM_LIST(l) l(0_deg) l(90_deg) l(180_deg) l(270_deg)
 #define FW_UPDATE_CHANNEL_ITEM_LIST(l) l(stable) l(unstable)
 
+/// @brief List of stat screen config items
 static const char * const config_stat_screen_items[] = { STAT_SCREEN_ITEM_LIST(STRINGIFY) };
+/// @brief Number of stat screen config items
 const size_t config_stat_screen_item_count = sizeof(config_stat_screen_items) / sizeof(config_stat_screen_items[0]);
+/// @brief List of speed field confio items
 static const char * const config_speed_field_items[] = { SPEED_FIELD_ITEM_LIST(STRINGIFY) };
+/// @brief Number of speed field config items
 const size_t config_speed_field_item_count = sizeof(config_speed_field_items) / sizeof(config_speed_field_items[0]);
+/// @brief List of screen config items
 static const char * const config_screen_items[] = { CFG_SCREEN_ITEM_LIST(STRINGIFY) CFG_SCREEN_ITEM_LIST_A(STRINGIFY) };
+/// @brief Number of screen config items
 const size_t config_screen_item_count = sizeof(config_screen_items) / sizeof(config_screen_items[0]);
+/// @brief List of firmwware update config items
 static const char * const config_fw_update_items[] = { CFG_FW_UPDATE_ITEM_LIST(STRINGIFY) };
+/// @brief Number of firmware update config items
 const size_t config_fw_update_item_count = sizeof(config_fw_update_items) / sizeof(config_fw_update_items[0]);
-// const char * const config_gps_items[] = { CFG_GPS_ITEM_LIST(STRINGIFY) };
-// const size_t config_gps_item_count = sizeof(config_gps_items) / sizeof(config_gps_items[0]);
+/// @brief List of config items for the logger
 const char * const config_items[] = { 
     CFG_CALIBRATION_ITEM_LIST(STRINGIFY)
     CFG_SCREEN_ITEM_LIST(STRINGIFY) 
@@ -65,31 +66,41 @@ const char * const config_items[] = {
     CFG_FW_UPDATE_ITEM_LIST(STRINGIFY) 
     CFG_ITEM_LIST(STRINGIFY)
 };
+/// @brief Number of config items for the logger
 const size_t config_item_count = sizeof(config_items) / sizeof(config_items[0]);
+/// @brief Config item names as string
 const char * config_item_names = ADD_QUOTE(CFG_CALIBRATION_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST(ADD) CFG_SCREEN_ITEM_LIST_A(ADD) CFG_FW_UPDATE_ITEM_LIST(ADD) CFG_ITEM_LIST(ADD));
-// static const char * config_item_names_compat = "Stat_screens|Stat_screens_time|GPIO12_screens|Board_Logo|board_Logo|sail_Logo|Sail_Logo|logTXT|logSBP|logUBX|logUBX_nav_sat|logGPY|logGPX|UBXfile|Sleep_info|";
-
+/// @brief List of board logo config items
 static const char * const board_logos[] = {BOARD_LOGO_ITEM_LIST(STRINGIFY)};
+/// @brief List of sail logo config items
 static const char * const sail_logos[] = {SAIL_LOGO_ITEM_LIST(STRINGIFY)};
-// const char * const speed_units[] = {SPEED_UNIT_ITEM_LIST(STRINGIFY)};
-// const char * const sample_rates[] = {SAMPLE_RATE_ITEM_LIST(STRINGIFY)};
+/// @brief List of screen rotation config items
 static const char * const screen_rotations[] = {SCREEN_ROTATION_ITEM_LIST(STRINGIFY)};
+/// @brief List of firmware update channel config items
 static const char * const channels[] = {FW_UPDATE_CHANNEL_ITEM_LIST(STRINGIFY)};
 static const char * const not_set = "not set";
 const char * const seconds_list[] = {"1 sec", "2 sec", "3 sec", "4 sec", "5 sec"};
 
+/// @brief  Get the config lock
+/// @param timeout 
+/// @return true if lock is taken, false otherwise
 static bool cfg_lock(int timeout) {
     if (!c_sem_lock) return false;
     const TickType_t timeout_ticks = (timeout == -1) ? portMAX_DELAY : pdMS_TO_TICKS(timeout);
     return  xSemaphoreTake(c_sem_lock, timeout_ticks) == pdTRUE;
 }
 
+/// @brief Release the config lock
 static void cfg_unlock() {
     if (c_sem_lock) {
         xSemaphoreGive(c_sem_lock);
     }
 }
-
+/// @brief Get firmware update config item
+/// @param config - config struct
+/// @param num - field number
+/// @param item - config item struct
+/// @return - config item struct
 struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
     ILOG(TAG, "[%s] num:%d", __func__, num);
     assert(config);
@@ -201,7 +212,7 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
         #else
             case cfg_screen_brightness: // ])) {
                 item->value = config->screen_brightness;
-                item->desc = item->value <= 20 ? "20" : item->value <= 40 ? "40" : item->value <= 60 ? "60" : item->value == 80 ? "80" : "100" ;
+                item->desc = item->value < 6 ? "5" : item->value <= 20 ? "20" : item->value <= 40 ? "40" : item->value <= 60 ? "60" : item->value == 80 ? "80" : "100" ;
                 break;
         #endif
             case cfg_board_logo: // ])) {
@@ -267,6 +278,7 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
                 else if(config->screen_brightness == 80) config->screen_brightness = 60;
                 else if(config->screen_brightness == 60) config->screen_brightness = 40;
                 else if(config->screen_brightness == 40) config->screen_brightness = 20;
+                else if(config->screen_brightness == 20) config->screen_brightness = 5;
                 else config->screen_brightness = 100;
                 ret = cfg_screen_brightness;
                 break;
@@ -596,7 +608,7 @@ int config_set(logger_config_t *config, const char *str, void *root, uint8_t for
     }
     uint8_t pos = cfg_get_pos(var);
     if (pos >= 254) {
-        DLOG(TAG, "[%s] ! var", __func__);
+        DLOG(TAG, "[%s] ! var\n", __func__);
         changed = 255;
         goto err;
     }
@@ -726,7 +738,7 @@ esp_err_t config_load_json(logger_config_t *config) {
         ESP_LOGE(TAG, "configuration not found...");
         goto done;
     }
-    DLOG(TAG, "[%s] json for load: %s", __func__ , json);
+    DLOG(TAG, "[%s] json for load: %s\n", __func__ , json);
     ret = config_decode(config, json);
 done:
     // cfg_unlock();
@@ -759,7 +771,7 @@ esp_err_t config_save_json(logger_config_t *config) {
         json_delete(root);
 #endif
     }
-    DLOG(TAG, "[%s] save json: %s", __func__, json);
+    DLOG(TAG, "[%s] save json: %s\n", __func__, json);
 #ifdef CONFIG_LOGGER_VFS_ENABLED
     s_rename_file_n(config_file_path, config_file_backup_path, 1);
     ret = s_write(config_file_path, 0, sb.start, sb.cur - sb.start);
@@ -938,13 +950,15 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"Display brightness\",\"type\":\"int\"");
                     strbf_puts(lsb, cfg_values[0]);
-                    for(uint8_t i = 0, j = 100, step = 20; i < j; i+=step) {
-                        strbf_puts(lsb, cfg_values[1]);
-                        strbf_putn(lsb, i+step);
-                        strbf_puts(lsb, cfg_values[2]);
-                        strbf_puts(lsb, i==0 ? "20" : i==20 ? "40" : i==40 ? "60" : i==60 ? "80" : "100");
-                        strbf_puts(lsb, "\"}");
-                        if(i < j-step) strbf_putc(lsb, ',');
+                    for(uint8_t i = 0, j = 105, step = 5; i < j; i+=step) {
+                        if(i == 5 || i % 20 == 0) {
+                            strbf_puts(lsb, cfg_values[1]);
+                            strbf_putn(lsb, i);
+                            strbf_puts(lsb, cfg_values[2]);
+                            strbf_puts(lsb, i==5 ? "0" : i==20 ? "20" : i==40 ? "40" : i==60 ? "60" : i==80 ? "80" : "100");
+                            strbf_puts(lsb, "\"}");
+                            if(i < j-step) strbf_putc(lsb, ',');
+                        }
                     }
                     strbf_puts(lsb, "]");
                 }
@@ -993,6 +1007,9 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                 strbf_putn(lsb, config->fwupdate.channel);
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"automatic firmware update channel\",\"type\":\"int\"");
+                    strbf_puts(lsb, ",\"depends\":\"");
+                    strbf_puts(lsb, config_items[cfg_update_enabled]);
+                    strbf_puts(lsb, "\"");
                     add_from_list(lsb, channels, lengthof(channels), 0);
                 }
                 break;
