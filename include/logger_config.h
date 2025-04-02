@@ -45,6 +45,7 @@ extern const char *config_item_names;
 #endif
 #define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
 #define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(sleep_info) l(hostname)
+#define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
 
 #define CFG_ENUM(l) cfg_##l,
 

@@ -35,7 +35,6 @@ ESP_EVENT_DEFINE_BASE(LOGGER_CONFIG_EVENT);
 /// @brief List of logger config event strings
 const char * const logger_config_event_strings[] = {LOGGER_CONFIG_EVENT_LIST(STRINGIFY)};
 
-#define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
 #define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_a500) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
 #define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
@@ -114,7 +113,7 @@ struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, i
                 item->desc = channels[config->fwupdate.channel];
                 break;
             case cfg_update_enabled:
-                item->value = config->fwupdate.update_enabled;
+                item->value = config->fwupdate.update_enabled ? 1 : 0;
                 item->desc = config->fwupdate.update_enabled ? "yes" : "no";
                 break;
         }
@@ -284,12 +283,12 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
                 break;
         #endif
             case cfg_board_logo: // ])) {
-                if(config->screen.board_logo >= 11) config->screen.board_logo = 1;
+                if(config->screen.board_logo >= sizeof(board_logos) / sizeof(board_logos[0])) config->screen.board_logo = 1;
                 else config->screen.board_logo++;
                 ret = cfg_board_logo;
                 break;
             case cfg_sail_logo: // ])) {
-                if(config->screen.sail_logo >= 12) config->screen.sail_logo = 1;
+                if(config->screen.sail_logo >= sizeof(sail_logos) / sizeof(sail_logos[0])) config->screen.sail_logo = 1;
                 else config->screen.sail_logo++;
                 ret = cfg_sail_logo;
                 break;
