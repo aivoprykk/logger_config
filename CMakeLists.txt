@@ -6,11 +6,6 @@ idf_component_register(
     PRIV_REQUIRES strutil
 )
 
-if(CONFIG_GPS_LOG_USE_CJSON)
-    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::json)
-else()
-    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::ccan_json)
-endif()
 if(CONFIG_GPS_LOG_ENABLED)
     target_link_libraries(${COMPONENT_LIB} PUBLIC idf::gps_log)
 endif()
