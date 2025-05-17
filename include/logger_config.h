@@ -45,7 +45,7 @@ extern const char *config_item_names;
 #endif
 #define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
 #define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(sleep_info) l(hostname)
-#define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(stat_10_sec) l(stat_alpha) l(stat_1852_m) l(stat_dist_500m) l(stat_max_2s_10s) l(stat_half_hour) l(stat_1_hour) l(stat_1h_dynamic)
+#define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(spd_10_sec) l(spd_alpha) l(spd_1852_m) l(spd_500_m) l(spd_dist_time) l(spd_max_2s_10s) l(spd_half_hour) l(spd_1_hour) l(spd_1h_dynamic)
 
 #define CFG_ENUM(l) cfg_##l,
 
@@ -89,7 +89,8 @@ typedef struct logger_config_speed_field_s {
     uint8_t stat_10_sec;
     uint8_t stat_alpha;
     uint8_t stat_1852_m;
-    uint8_t stat_dist_500m;
+    uint8_t stat_500_m;
+    uint8_t stat_dist_time;
     uint8_t stat_max_2s_10s;
     uint8_t stat_half_hour;
     uint8_t stat_1_hour;

@@ -190,8 +190,8 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
         switch (num) {
             case cfg_speed_field: //])) {
                 item->value = config->screen.speed_field;
-                if(config->screen.speed_field > 0 && config->screen.speed_field <= config_speed_field_item_count)
-                    item->desc = config_speed_field_items[config->screen.speed_field-1];
+                if(config->screen.speed_field < config_speed_field_item_count)
+                    item->desc = config_speed_field_items[config->screen.speed_field];
                 else
                     item->desc = not_set;
                 break;
@@ -230,7 +230,7 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
                 break;
             case cfg_screen_rotation: // ])) {
                 item->value = config->screen.screen_rotation;
-                if(config->screen.screen_rotation >=0 && config->screen.screen_rotation <= 3)
+                if(config->screen.screen_rotation >=0 && config->screen.screen_rotation <= lengthof(screen_rotations))
                     item->desc = screen_rotations[config->screen.screen_rotation];
                 else
                     item->desc = not_set;
@@ -253,17 +253,14 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
     int ret = 0;
     if(cfg_lock(portMAX_DELAY) == pdTRUE) {
         switch(num) {
-            case cfg_speed_field: // ])) {
-                if(config->screen.speed_field == 9) config->screen.speed_field = 1;
-                else config->screen.speed_field++;
+            case cfg_speed_field:
+                if(config->screen.speed_field >= config_speed_field_item_count-1) config->screen.speed_field = 0;
+                else ++config->screen.speed_field;
                 ret = cfg_speed_field;
                 break;
-            case cfg_stat_screens_time: // ])) {
-                if(config->screen.stat_screens_time == 5) config->screen.stat_screens_time = 4;
-                else if(config->screen.stat_screens_time == 4) config->screen.stat_screens_time = 3;
-                else if(config->screen.stat_screens_time == 3) config->screen.stat_screens_time = 2;
-                else if(config->screen.stat_screens_time == 2) config->screen.stat_screens_time = 1;
-                else config->screen.stat_screens_time = 5;
+            case cfg_stat_screens_time:
+                if(config->screen.stat_screens_time == 1) config->screen.stat_screens_time = lengthof(seconds_list);
+                else --config->screen.stat_screens_time;
                 ret = cfg_stat_screens_time;
                 break;
         #if defined(CONFIG_LCD_IS_EPD)
@@ -283,22 +280,18 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
                 break;
         #endif
             case cfg_board_logo: // ])) {
-                if(config->screen.board_logo >= sizeof(board_logos) / sizeof(board_logos[0])) config->screen.board_logo = 1;
-                else config->screen.board_logo++;
+                if(config->screen.board_logo >= lengthof(board_logos)) config->screen.board_logo = 1;
+                else ++config->screen.board_logo;
                 ret = cfg_board_logo;
                 break;
             case cfg_sail_logo: // ])) {
-                if(config->screen.sail_logo >= sizeof(sail_logos) / sizeof(sail_logos[0])) config->screen.sail_logo = 1;
-                else config->screen.sail_logo++;
+                if(config->screen.sail_logo >= lengthof(sail_logos)) config->screen.sail_logo = 1;
+                else ++config->screen.sail_logo;
                 ret = cfg_sail_logo;
                 break;
             case cfg_screen_rotation: // ])) {
-                if(config->screen.screen_rotation >= 3) {
-                    config->screen.screen_rotation = 0;
-                }
-                else {
-                    config->screen.screen_rotation++;
-                }
+                if(config->screen.screen_rotation >= lengthof(screen_rotations)) config->screen.screen_rotation = 0;
+                else ++config->screen.screen_rotation;
                 ret = cfg_screen_rotation;
                 break;
             default:
@@ -895,7 +888,7 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                 strbf_putn(lsb, config->screen.speed_field);
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"choice for first field in speed screen\",\"type\":\"int\"");
-                    add_from_list(lsb, config_speed_field_items, lengthof(config_speed_field_items), 1);
+                    add_from_list(lsb, config_speed_field_items, lengthof(config_speed_field_items), 0);
                 }
                 break;
             case cfg_speed_large_font: // fonts on the first line are bigger, actual speed font is smaller
