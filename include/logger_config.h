@@ -11,12 +11,10 @@ extern "C" {
 #include "logger_common.h"
 
 // extern const char * const config_speed_field_items[];
-// extern const char * const config_stat_screen_items[];
 // extern const char * const config_screen_items[];
 // extern const char * const config_gps_items[];
 // extern const char * const config_fw_update_items[];
 extern const size_t config_speed_field_item_count;
-extern const size_t config_stat_screen_item_count;
 extern const size_t config_screen_item_count;
 // extern const size_t config_gps_item_count;
 extern const size_t config_fw_update_item_count;
@@ -35,8 +33,8 @@ extern const char *config_item_names;
 #endif
 
 // #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
-#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(stat_screens) l(board_logo) l(sail_logo) l(screen_rotation)
-#define CGG_SCREEN_ITEM_ROTATION_POS (5)
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(board_logo) l(sail_logo) l(screen_rotation)
+#define CGG_SCREEN_ITEM_ROTATION_POS (4)
 #if defined(CONFIG_LCD_IS_EPD)
 #define CFG_SCREEN_ITEM_LIST_A(l) l(screen_move_offset)
 #else
@@ -109,30 +107,6 @@ typedef struct logger_config_speed_field_s {
     .stat_1_hour_dynamic = 0, \
 }
 
-typedef struct logger_config_stat_screens_s {
-    uint8_t stat_10_sec;
-    uint8_t stat_2_sec;
-    uint8_t stat_250_m;
-    uint8_t stat_500_m;
-    uint8_t stat_1852_m;
-    uint8_t stat_alfa;
-    uint8_t stat_avg_10sec;
-    uint8_t stat_stat1;
-    uint8_t stat_avg_a500;
-} logger_config_stat_screens_t;
-// #define L_CONFIG_STAT_FIELDS sizeof(struct logger_config_stat_screens_s)
-#define LOGGER_CONFIG_STAT_SCREENS_DEFAULTS() { \
-    .stat_10_sec = 1, \
-    .stat_2_sec = 1, \
-    .stat_250_m = 1, \
-    .stat_500_m = 1, \
-    .stat_1852_m = 1, \
-    .stat_alfa = 0, \
-    .stat_avg_10sec = 1, \
-    .stat_stat1 = 1, \
-    .stat_avg_a500 = 0, \
-}
-
 #if !defined(SCR_DEFAULT_ROTATION)
 #if !defined(CONFIG_LCD_IS_EPD)
 #define SCR_DEFAULT_ROTATION 2 // 90deg
@@ -157,7 +131,6 @@ typedef struct logger_config_screen_s {
     int8_t screen_rotation;
     uint8_t screen_no_auto_refresh;
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
-    uint16_t stat_screens;    // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
     uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
 } logger_config_screen_t;
 // #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
@@ -170,7 +143,6 @@ typedef struct logger_config_screen_s {
     .stat_speed = 1, \
     .screen_rotation = SCR_DEFAULT_ROTATION, \
     .screen_no_auto_refresh = !SCR_AUTO_REFRESH, \
-    .stat_screens = 255U, \
     .gpio12_screens = 255U, \
 }
 
@@ -379,8 +351,6 @@ esp_err_t config_set_screen_cb(logger_config_t * config, void(*cb)(const char *)
 
 // struct m_config_item_s * get_gps_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item);
 // int set_gps_cfg_item(logger_config_t *config, int num);
-struct m_config_item_s * get_stat_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item);
-int set_stat_screen_cfg_item(logger_config_t * config, int num);
 struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item);
 int set_screen_cfg_item(logger_config_t * config, int num);
 struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item);

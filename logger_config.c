@@ -35,16 +35,11 @@ ESP_EVENT_DEFINE_BASE(LOGGER_CONFIG_EVENT);
 /// @brief List of logger config event strings
 const char * const logger_config_event_strings[] = {LOGGER_CONFIG_EVENT_LIST(STRINGIFY)};
 
-#define STAT_SCREEN_ITEM_LIST(l) l(stat_10_sec) l(stat_2_sec) l(stat_250_m) l(stat_500_m) l(stat_1852_m) l(stat_a500) l(stat_avg_10sec) l(stat_stat1) l(stat_avg_a500)
 #define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
 #define SCREEN_ROTATION_ITEM_LIST(l) l(0_deg) l(90_deg) l(180_deg) l(270_deg)
 #define FW_UPDATE_CHANNEL_ITEM_LIST(l) l(stable) l(unstable)
 
-/// @brief List of stat screen config items
-static const char * const config_stat_screen_items[] = { STAT_SCREEN_ITEM_LIST(STRINGIFY) };
-/// @brief Number of stat screen config items
-const size_t config_stat_screen_item_count = sizeof(config_stat_screen_items) / sizeof(config_stat_screen_items[0]);
 /// @brief List of speed field confio items
 static const char * const config_speed_field_items[] = { SPEED_FIELD_ITEM_LIST(STRINGIFY) };
 /// @brief Number of speed field config items
@@ -145,41 +140,6 @@ int set_fw_update_cfg_item(logger_config_t * config, int num) {
     return 1;
 }
 
-struct m_config_item_s * get_stat_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
-    if(!item) return 0;
-    if(cfg_lock(portMAX_DELAY) == pdTRUE) {
-        if(num>=0 && num<config_stat_screen_item_count) {
-            item->name = config_stat_screen_items[num];
-            item->pos = num;
-            item->value = (config->screen.stat_screens & (1 << num)) ? 1 : 0;
-            item->desc = item->value ? "on" : "off";
-        }
-        cfg_unlock();
-    }
-    esp_event_post(LOGGER_CONFIG_EVENT, LOGGER_CONFIG_EVENT_CFG_GET, &num, sizeof(num), portMAX_DELAY);
-    return item;
-}
-
-int set_stat_screen_cfg_item(logger_config_t * config, int num) {
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
-    if(num>=config_stat_screen_item_count) return 0;
-    //const char *name = config_gps_items[num];
-    if(cfg_lock(portMAX_DELAY) == pdTRUE) {
-        uint16_t val = config->screen.stat_screens;
-        if(num>=0 && num<config_stat_screen_item_count) {
-            val ^= (1 << num);
-        }
-        if(val!=config->screen.stat_screens) {
-            config->screen.stat_screens = val;
-        }
-        cfg_unlock();
-    }
-    esp_event_post(LOGGER_CONFIG_EVENT, LOGGER_CONFIG_EVENT_CFG_SET, &num, sizeof(num), portMAX_DELAY);
-    return 1;
-}
 struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
     ILOG(TAG, "[%s] num:%d", __func__, num);
     assert(config);
@@ -198,10 +158,6 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
             case cfg_stat_screens_time: //])) {
                 item->value = config->screen.stat_screens_time;
                 item->desc = seconds_list[config->screen.stat_screens_time-1];
-                break;
-            case cfg_stat_screens: // ])) {
-                item->value = config->screen.stat_screens;
-                item->desc = "menu";
                 break;
         #if defined(CONFIG_LCD_IS_EPD)
             case cfg_screen_move_offset: // ])) {
@@ -367,9 +323,6 @@ uint8_t cfg_get_pos(const char *str) {
             return i;
         }
     }
-    if(!strcmp(str, "Stat_screens")) {
-        return cfg_stat_screens;
-    }
     if(!strcmp(str, "Stat_screens_time")) {
         return cfg_stat_screens_time;
     }
@@ -436,10 +389,6 @@ uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t fo
         case cfg_speed_large_font: // fonts on the first line are bigger, actual speed font is smaller
             ret = set_hhu(value, &config->screen.speed_large_font, 0);
             if(!ret) changed = cfg_speed_large_font;
-            break;
-        case cfg_stat_screens: // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
-            ret = set_u(value, &config->screen.stat_screens, 0);
-            if(!ret) changed = cfg_stat_screens;
             break;
         case cfg_stat_screens_time: // time between switching stat_screens
             ret = set_hhu(value, &config->screen.stat_screens_time, 0);
@@ -671,9 +620,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 #endif
         if(!item) {
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
-            if(i==cfg_stat_screens) {
-                item = cJSON_GetObjectItemCaseSensitive(root, "Stat_screens");
-            } else if(i==cfg_stat_screens_time) {
+            if(i==cfg_stat_screens_time) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "Stat_screens_time");
             } else if(i==cfg_gpio12_screens) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "GPIO12_screens");
@@ -685,9 +632,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "Sleep_info");
             }
 #else
-            if(i==cfg_stat_screens) {
-                item = json_find_member(root, "Stat_screens");
-            } else if(i==cfg_stat_screens_time) {
+            if(i==cfg_stat_screens_time) {
                 item = json_find_member(root, "Stat_screens_time");
             } else if(i==cfg_gpio12_screens) {
                 item = json_find_member(root, "GPIO12_screens");
@@ -802,8 +747,6 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return cfg_archive_days;
         if (orig->screen.stat_screens_time != config->screen.stat_screens_time)
             return cfg_stat_screens_time;
-        if (orig->screen.stat_screens != config->screen.stat_screens)
-            return cfg_stat_screens;
         if (orig->screen.gpio12_screens != config->screen.gpio12_screens)
             return cfg_gpio12_screens;
 #if defined(CONFIG_LCD_IS_EPD)
@@ -895,25 +838,6 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                 strbf_putn(lsb, config->screen.speed_large_font);
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"bool\"");
-                }
-                break;
-            case cfg_stat_screens: // choice for stats field when no speed, here stat_screen 1, 2 and 3 will be active
-                strbf_putn(lsb, config->screen.stat_screens);
-                if (mode) {
-                    strbf_puts(lsb, ",\"info\":\"Stat_screens choice : activate / deactivate screens to show.\",\"type\":\"int\"");
-                    strbf_puts(lsb, ",\"toggles\":[");
-                    uint16_t j = 1;
-                    for(uint8_t i= 0, k = config_stat_screen_item_count; i < k; i++, j <<= 1) {
-                        strbf_puts(lsb, "{\"pos\":");
-                        strbf_putn(lsb, i);
-                        strbf_puts(lsb, cfg_values[2]);
-                        strbf_puts(lsb, config_stat_screen_items[i]);
-                        strbf_puts(lsb, "\",\"value\":");
-                        strbf_putn(lsb, j);
-                        strbf_puts(lsb, "}");
-                        if(i < k-1) strbf_putc(lsb, ',');
-                    }
-                    strbf_puts(lsb, "]");
                 }
                 break;
             case cfg_stat_screens_time: // time between switching stat_screens
