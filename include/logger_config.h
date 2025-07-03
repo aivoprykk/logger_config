@@ -31,10 +31,14 @@ extern const char *config_item_names;
 #else
 #define CFG_CALIBRATION_ITEM_LIST(l)
 #endif
-
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
+#define LL(l) l(stat_screens_time)
+#else
+#define LL(l)
+#endif
 // #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
-#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(stat_screens_time) l(board_logo) l(sail_logo) l(screen_rotation)
-#define CGG_SCREEN_ITEM_ROTATION_POS (4)
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(board_logo) l(sail_logo) l(screen_rotation) LL(l) 
+#define CGG_SCREEN_ITEM_ROTATION_POS (3)
 #if defined(CONFIG_LCD_IS_EPD)
 #define CFG_SCREEN_ITEM_LIST_A(l) l(screen_move_offset)
 #else
@@ -42,7 +46,17 @@ extern const char *config_item_names;
 #define CGG_SCREEN_ITEM_BRIGHTNESS_POS (CGG_SCREEN_ITEM_ROTATION_POS+1)
 #endif
 #define CFG_FW_UPDATE_ITEM_LIST(l) l(update_enabled) l(update_channel)
-#define CFG_ITEM_LIST(l) l(speed_large_font) l(bar_length) l(stat_speed) l(archive_days) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) l(gpio12_screens) l(sleep_info) l(hostname)
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
+#define CFG_SCREEN_ITEM_LIST_B(l) l(gpio12_screens)
+#else
+#define CFG_SCREEN_ITEM_LIST_B(l)
+#endif
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
+#define CFG_SCREEN_ITEM_LIST_C(l) l(speed_large_font)
+#else
+#define CFG_SCREEN_ITEM_LIST_C(l)
+#endif
+#define CFG_ITEM_LIST(l) CFG_SCREEN_ITEM_LIST_C(l) l(bar_length) l(stat_speed) l(archive_days) l(ssid) l(password) l(ssid1) l(password1) l(ssid2) l(password2) l(ssid3) l(password3) CFG_SCREEN_ITEM_LIST_B(l) l(sleep_info) l(hostname)
 #define SPEED_FIELD_ITEM_LIST(l) l(dynamic) l(spd_10_sec) l(spd_alpha) l(spd_1852_m) l(spd_500_m) l(spd_dist_time) l(spd_max_2s_10s) l(spd_half_hour) l(spd_1_hour) l(spd_1h_dynamic)
 
 #define CFG_ENUM(l) cfg_##l,
@@ -107,6 +121,16 @@ typedef struct logger_config_speed_field_s {
     .stat_1_hour_dynamic = 0, \
 }
 
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
+#define STAT_IO12_SCREEN_ITEM_LIST(l) \
+    l(stat_stat1) \
+    l(stat_stat2)
+
+enum stat_screen_io12_items_e {
+    STAT_IO12_SCREEN_ITEM_LIST(ENUM)
+};
+#endif
+
 #if !defined(SCR_DEFAULT_ROTATION)
 #if !defined(CONFIG_LCD_IS_EPD)
 #define SCR_DEFAULT_ROTATION 2 // 90deg
@@ -124,26 +148,43 @@ typedef struct logger_config_speed_field_s {
 
 typedef struct logger_config_screen_s {
     uint8_t speed_field;             // choice for first field in speed screen !!!
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
     uint8_t speed_large_font;        // fonts on the first line are bigger, actual speed font is smaller
+#endif
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
     uint8_t stat_screens_time;       // time between switching stat_screens
+#define LL1 .stat_screens_time = 1,
+#else
+#define LL1
+#endif
     uint8_t board_logo;
     uint8_t sail_logo;
     int8_t screen_rotation;
     uint8_t screen_no_auto_refresh;
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
     uint16_t gpio12_screens;  // choice for stats field when gpio12 is activated (pull-up high, low = active)
+#define LOGGER_CONFIG_SCREEN_GPIO12_SCREENS .gpio12_screens = 255U,
+#else
+#define LOGGER_CONFIG_SCREEN_GPIO12_SCREENS 
+#endif
 } logger_config_screen_t;
 // #define L_CONFIG_SCREEN_FIELDS sizeof(struct logger_config_screen_s)
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
+#define LL2 .speed_large_font = 0,
+#else
+#define LL2 
+#endif
 #define LOGGER_CONFIG_SCREEN_DEFAULTS() { \
     .speed_field = 1, \
-    .speed_large_font = 0, \
-    .stat_screens_time = 3, \
+    LL2 \
+    LL1 \
     .board_logo = 1, \
     .sail_logo = 1, \
     .stat_speed = 1, \
     .screen_rotation = SCR_DEFAULT_ROTATION, \
     .screen_no_auto_refresh = !SCR_AUTO_REFRESH, \
-    .gpio12_screens = 255U, \
+    LOGGER_CONFIG_SCREEN_GPIO12_SCREENS \
 }
 
 typedef enum {

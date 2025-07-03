@@ -96,8 +96,10 @@ static void cfg_unlock() {
 /// @param item - config item struct
 /// @return - config item struct
 struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
+#endif
+    if(!config) return 0;
     if(!item) return 0;
     item->name = config_fw_update_items[num];
     item->pos = num;
@@ -119,8 +121,10 @@ struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, i
 }
 
 int set_fw_update_cfg_item(logger_config_t * config, int num) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
+#endif
+    if(!config) return 0;
     if(num>=2) return 0;
     const char *name = config_fw_update_items[num];
     if(cfg_lock(portMAX_DELAY) == pdTRUE) {
@@ -141,8 +145,10 @@ int set_fw_update_cfg_item(logger_config_t * config, int num) {
 }
 
 struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
+#endif
+    if(!config) return 0;
     if(!item) return 0;
     item->name = config_screen_items[num];
     item->pos = num;
@@ -155,10 +161,12 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
                 else
                     item->desc = not_set;
                 break;
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
             case cfg_stat_screens_time: //])) {
                 item->value = config->screen.stat_screens_time;
                 item->desc = seconds_list[config->screen.stat_screens_time-1];
                 break;
+#endif
         #if defined(CONFIG_LCD_IS_EPD)
             case cfg_screen_move_offset: // ])) {
                 item->value = config->screen_move_offset ? 1 : 0;
@@ -202,8 +210,10 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
 }
 
 int set_screen_cfg_item(logger_config_t * config, int num) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] num:%d", __func__, num);
-    assert(config);
+#endif
+    if(!config) return 0;
     if(num>=config_screen_item_count) return 0;
     const char *name = config_screen_items[num];
     int ret = 0;
@@ -214,11 +224,13 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
                 else ++config->screen.speed_field;
                 ret = cfg_speed_field;
                 break;
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
             case cfg_stat_screens_time:
                 if(config->screen.stat_screens_time == 1) config->screen.stat_screens_time = lengthof(seconds_list);
                 else --config->screen.stat_screens_time;
                 ret = cfg_stat_screens_time;
                 break;
+#endif
         #if defined(CONFIG_LCD_IS_EPD)
             case cfg_screen_move_offset: // ])) {
                 config->screen_move_offset = config->screen_move_offset ? 0 : 1;
@@ -314,7 +326,9 @@ logger_config_t *config_clone(logger_config_t *orig, logger_config_t *config) {
 }
 
 uint8_t cfg_get_pos(const char *str) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] str: %s", __func__, str ? str : "-");
+#endif
     if (!str) {
         return 254;
     }
@@ -323,12 +337,16 @@ uint8_t cfg_get_pos(const char *str) {
             return i;
         }
     }
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
     if(!strcmp(str, "Stat_screens_time")) {
         return cfg_stat_screens_time;
     }
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
     if(!strcmp(str, "GPIO12_screens")) {
         return cfg_gpio12_screens;
     }
+#endif
     if(!strcmp(str, "Board_Logo") || !strcmp(str, "board_Logo")) {
         return cfg_board_logo;
     }
@@ -350,7 +368,9 @@ uint8_t cfg_get_pos(const char *str) {
 }
 
 uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t force) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] pos: %hhu", __func__, pos);
+#endif
     if (!el) {
         return 254;
     }
@@ -386,18 +406,24 @@ uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t fo
             ret = set_hhu(value, &config->screen.speed_field, 0);
             if(!ret) changed = cfg_speed_field;
             break;
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
         case cfg_speed_large_font: // fonts on the first line are bigger, actual speed font is smaller
             ret = set_hhu(value, &config->screen.speed_large_font, 0);
             if(!ret) changed = cfg_speed_large_font;
             break;
+#endif
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
         case cfg_stat_screens_time: // time between switching stat_screens
             ret = set_hhu(value, &config->screen.stat_screens_time, 0);
             if(!ret) changed = cfg_stat_screens_time;
             break;
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
         case cfg_gpio12_screens: // choice for stats field when gpio12 is activated (pull-up high, low = active)
             ret = set_u(value, &config->screen.gpio12_screens, 0);
             if(!ret) changed = cfg_gpio12_screens;
             break;
+#endif
     #if defined(CONFIG_LCD_IS_EPD)
         case cfg_screen_move_offset:
             ret = set_hhu(value, (uint8_t*)&config->screen_move_offset, 0);
@@ -519,7 +545,9 @@ const char * config_get_var_name(const char * str, void * root) {
 }
 
 int config_set(logger_config_t *config, const char *str, void *root, uint8_t force) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s] name: %s",__func__, str ? str : "-");
+#endif
     if (!root) return 254;
     uint8_t changed = 255;
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
@@ -549,7 +577,9 @@ int config_set(logger_config_t *config, const char *str, void *root, uint8_t for
     }
     uint8_t pos = cfg_get_pos(var);
     if (pos >= 254) {
+#if (C_LOG_LEVEL < 2)
         DLOG(TAG, "[%s] ! var\n", __func__);
+#endif
         changed = 255;
         goto err;
     }
@@ -562,7 +592,9 @@ err:
 }
 
 int config_set_var(logger_config_t *config, const char *json, const char *var) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] '%s'", __func__, json ? json : var ? var : "-");
+#endif
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
     cJSON *root = cJSON_Parse(json);
 #else
@@ -584,24 +616,32 @@ int config_set_var(logger_config_t *config, const char *json, const char *var) {
 }
 
 int config_save_var(struct logger_config_s *config, const char *json, const char *var) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s] name: %s",__func__, var ? var : "-");
     IMEAS_START();
+#endif
     int ret = -1;
     ret = config_set_var(config, json, var);
     if (ret >= 0) {
         ret = config_save_json(config);
     }
+#if (C_LOG_LEVEL < 3)
     IMEAS_END(TAG, "[%s] took %llu us", __func__);
+#endif
     return ret;
 }
 
 int config_save_var_b(logger_config_t *config, const char *json) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
     return config_save_var(config, json, 0);
 }
 
 esp_err_t config_decode(logger_config_t *config, const char *json) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
     int ret = ESP_OK, changed;
     gps_config_decode(json);
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
@@ -620,10 +660,14 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 #endif
         if(!item) {
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
             if(i==cfg_stat_screens_time) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "Stat_screens_time");
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
             } else if(i==cfg_gpio12_screens) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "GPIO12_screens");
+#endif
             } else if(i==cfg_board_logo) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "board_Logo");
             } else if(i==cfg_sail_logo) {
@@ -632,16 +676,23 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
                 item = cJSON_GetObjectItemCaseSensitive(root, "Sleep_info");
             }
 #else
-            if(i==cfg_stat_screens_time) {
+            if(i==cfg_sleep_info) {
+                item = json_find_member(root, "Sleep_info");
+            }
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
+            else if(i==cfg_stat_screens_time) {
                 item = json_find_member(root, "Stat_screens_time");
-            } else if(i==cfg_gpio12_screens) {
+            }
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
+            else if(i==cfg_gpio12_screens) {
                 item = json_find_member(root, "GPIO12_screens");
-            } else if(i==cfg_board_logo) {
+            }
+#endif
+            else if(i==cfg_board_logo) {
                 item = json_find_member(root, "board_Logo");
             } else if(i==cfg_sail_logo) {
                 item = json_find_member(root, "sail_Logo");
-            } else if(i==cfg_sleep_info) {
-                item = json_find_member(root, "Sleep_info");
             }
 #endif
         }
@@ -659,23 +710,30 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 }
 
 esp_err_t config_load_json(logger_config_t *config) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
     IMEAS_START();
+#endif
     int ret = ESP_OK;
     char *json = 0;
+    const char *path = config_file_path;
     // if(cfg_lock(portMAX_DELAY) == pdTRUE) {
 #ifdef CONFIG_LOGGER_VFS_ENABLED
-    if ((json = s_read_from_file(config_file_path, 0))) {
-        ILOG(TAG,"[%s] from %s done",__func__, config_file_path);
-    } else if ((json = s_read_from_file(config_file_backup_path, 0))) {
-        ILOG(TAG,"[%s] from %s done",__func__, config_file_backup_path);
-    } else 
+    json = s_read_from_file(path, 0);
+    if (!json) {
+        path = config_file_backup_path;
+        json = s_read_from_file(path, 0);
+    }
 #endif
-    {
-        ESP_LOGE(TAG, "configuration not found...");
+    if (!json) {
+        ELOG(TAG, "[%s] could not read config %s ...", __func__, path);
         goto done;
     }
-    DLOG(TAG, "[%s] json for load: %s\n", __func__ , json);
+    else
+        WLOG(TAG,"[%s] read %s.",__func__, path);
+#if (C_LOG_LEVEL < 2)
+    DLOG(TAG, "[%s] %s\n", __func__ , json);
+#endif
     ret = config_decode(config, json);
 done:
     // cfg_unlock();
@@ -683,12 +741,16 @@ done:
     if (json)
         free(json);
     esp_event_post(LOGGER_CONFIG_EVENT, LOGGER_CONFIG_EVENT_LOAD_DONE, config, sizeof(logger_config_t), portMAX_DELAY);
+#if (C_LOG_LEVEL < 3)
     IMEAS_END(TAG, "[%s] took %llu us", __func__);
+#endif
     return ret;
 }
 
 esp_err_t config_save_json(logger_config_t *config) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
     int ret = ESP_OK;
     strbf_t sb;
     strbf_init(&sb);
@@ -699,7 +761,7 @@ esp_err_t config_save_json(logger_config_t *config) {
     JsonNode *root = json_decode(json);
 #endif
     if (!root) {
-        ESP_LOGE(TAG, "[%s] bad json: %s", __func__ , json);
+        ELOG(TAG, "[%s] bad json: %s", __func__ , json);
         goto done;
     } else {
 #ifdef CONFIG_GPS_LOG_USE_CJSON
@@ -708,10 +770,13 @@ esp_err_t config_save_json(logger_config_t *config) {
         json_delete(root);
 #endif
     }
+#if (C_LOG_LEVEL < 2)
     DLOG(TAG, "[%s] save json: %s\n", __func__, json);
+#endif
 #ifdef CONFIG_LOGGER_VFS_ENABLED
     s_rename_file_n(config_file_path, config_file_backup_path, 1);
     ret = s_write(config_file_path, 0, sb.start, sb.cur - sb.start);
+    WLOG(TAG,"[%s] wrote %s.",__func__, config_file_path);
 #endif
 done:
     strbf_free(&sb);
@@ -720,14 +785,20 @@ done:
 }
 
 logger_config_t *config_fix_values(logger_config_t *config) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
     if (config->screen.stat_screens_time < 1)
         config->screen.stat_screens_time = 1;
+#endif
     return config;
 }
 
 int config_compare(logger_config_t *orig, logger_config_t *config) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
     if (!orig || !config)
         return -1;
     if (orig && !config)
@@ -737,18 +808,24 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
     if(orig && config) {
         if (orig->screen.speed_field != config->screen.speed_field)
             return cfg_speed_field;
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
         if (orig->screen.speed_large_font != config->screen.speed_large_font)
             return cfg_speed_large_font;
+#endif
         if (orig->bar_length != config->bar_length)
             return cfg_bar_length;
         if (orig->screen.stat_speed != config->screen.stat_speed)
             return cfg_stat_speed;
         if (orig->archive_days != config->archive_days)
             return cfg_archive_days;
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
         if (orig->screen.stat_screens_time != config->screen.stat_screens_time)
             return cfg_stat_screens_time;
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
         if (orig->screen.gpio12_screens != config->screen.gpio12_screens)
             return cfg_gpio12_screens;
+#endif
 #if defined(CONFIG_LCD_IS_EPD)
         if (orig->screen_move_offset != config->screen_move_offset)
             return cfg_screen_move_offset;
@@ -834,12 +911,15 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                     add_from_list(lsb, config_speed_field_items, lengthof(config_speed_field_items), 0);
                 }
                 break;
+#if defined(CONFIG_LOGGER_SPEED_SCREEN_VARIANT)
             case cfg_speed_large_font: // fonts on the first line are bigger, actual speed font is smaller
                 strbf_putn(lsb, config->screen.speed_large_font);
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"fonts on the first line are bigger, actual speed font is smaller\",\"type\":\"bool\"");
                 }
                 break;
+#endif
+#if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
             case cfg_stat_screens_time: // time between switching stat_screens
                 strbf_putn(lsb, config->screen.stat_screens_time);
                 if (mode) {
@@ -847,12 +927,15 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                     add_from_list(lsb, seconds_list, lengthof(seconds_list), 1);
                 }
                 break;
+#endif
+#if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
             case cfg_gpio12_screens: // choice for stats field when gpio12 is activated (pull-up high, low = active)
                 strbf_putn(lsb, config->screen.gpio12_screens);
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"GPIO12_screens choice : Every digit shows the according GPIO_screen after each push. Screen 4 = s10 runs, screen 5 = alfa's.\",\"type\":\"int\"");
                 }
                 break;
+#endif
         #if defined(CONFIG_LCD_IS_EPD)
             case cfg_screen_move_offset:
                 strbf_putn(lsb, config->screen_move_offset);
@@ -1001,12 +1084,16 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
         err:
         cfg_unlock();
     }
+#if (C_LOG_LEVEL < 2)
     DLOG(TAG, "[%s] conf: %s len: %d\n", __func__, strbf_finish(lsb), lsb->cur - lsb->start);
+#endif
     return pos;
 }
 char *config_get(const logger_config_t *config, const char *name, struct strbf_s *lsb, uint8_t mode) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG, "[%s] %s", __func__, name ? name : "-");
-    assert(lsb);
+#endif
+    if(!lsb) return 0;
     uint8_t pos = cfg_get_pos(name);
     if(pos == 255) {
         pos = gps_cfg_get_pos(name);
@@ -1020,7 +1107,9 @@ char *config_get(const logger_config_t *config, const char *name, struct strbf_s
 }
 
 char *config_encode_json(logger_config_t *config, strbf_t *sb) {
+#if (C_LOG_LEVEL < 3)
     ILOG(TAG,"[%s]",__func__);
+#endif
     size_t blen = BUFSIZ / 3 * 2, len = 0;
     char buf[blen], *p = 0;
 
