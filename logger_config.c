@@ -578,7 +578,7 @@ int config_set(logger_config_t *config, const char *str, void *root, uint8_t for
     uint8_t pos = cfg_get_pos(var);
     if (pos >= 254) {
 #if (C_LOG_LEVEL < 2)
-        DLOG(TAG, "[%s] ! var\n", __func__);
+        DLOG(TAG, "[%s] ! var", __func__);
 #endif
         changed = 255;
         goto err;
@@ -732,7 +732,7 @@ esp_err_t config_load_json(logger_config_t *config) {
     else
         WLOG(TAG,"[%s] read %s.",__func__, path);
 #if (C_LOG_LEVEL < 2)
-    DLOG(TAG, "[%s] %s\n", __func__ , json);
+    DLOG(TAG, "[%s] %s", __func__ , json);
 #endif
     ret = config_decode(config, json);
 done:
@@ -771,7 +771,7 @@ esp_err_t config_save_json(logger_config_t *config) {
 #endif
     }
 #if (C_LOG_LEVEL < 2)
-    DLOG(TAG, "[%s] save json: %s\n", __func__, json);
+    DLOG(TAG, "[%s] save json: %s", __func__, json);
 #endif
 #ifdef CONFIG_LOGGER_VFS_ENABLED
     s_rename_file_n(config_file_path, config_file_backup_path, 1);
@@ -1085,7 +1085,7 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
         cfg_unlock();
     }
 #if (C_LOG_LEVEL < 2)
-    DLOG(TAG, "[%s] conf: %s len: %d\n", __func__, strbf_finish(lsb), lsb->cur - lsb->start);
+    DLOG(TAG, "[%s] conf: %s len: %d", __func__, strbf_finish(lsb), lsb->cur - lsb->start);
 #endif
     return pos;
 }
