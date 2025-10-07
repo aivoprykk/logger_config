@@ -31,13 +31,21 @@ extern const char *config_item_names;
 #else
 #define CFG_CALIBRATION_ITEM_LIST(l)
 #endif
+#define BAT_VIEW_LIST(l) l(bat_icon) l(bat_perc) l(bat_volt)
+
+enum bat_view_e {
+    BAT_VIEW_LIST(ENUM)
+    BAT_VIEW_MAX
+};
+// #define BAT_VIEW_POS (0)
+
 #if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
 #define LL(l) l(stat_screens_time)
 #else
 #define LL(l)
 #endif
 // #define CFG_GPS_ITEM_LIST(l) l(gnss) l(sample_rate) l(timezone) l(speed_unit) l(log_txt) l(log_ubx) l(log_sbp) l(log_gpy) l(log_gpx) l(log_ubx_nav_sat) l(dynamic_model)
-#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(board_logo) l(sail_logo) l(screen_rotation) LL(l) 
+#define CFG_SCREEN_ITEM_LIST(l) l(speed_field) l(board_logo) l(sail_logo) l(screen_rotation) l(bat_view) LL(l) 
 #define CGG_SCREEN_ITEM_ROTATION_POS (3)
 #if defined(CONFIG_LCD_IS_EPD)
 #define CFG_SCREEN_ITEM_LIST_A(l) l(screen_move_offset)
@@ -160,6 +168,7 @@ typedef struct logger_config_screen_s {
     uint8_t board_logo;
     uint8_t sail_logo;
     int8_t screen_rotation;
+    uint8_t bat_view;                // choice for battery view, 0=icon only, 1=percentage, 2=voltage
     uint8_t screen_no_auto_refresh;
     uint8_t stat_speed;       // max speed in m/s for showing Stat screens
 #if defined(CONFIG_LOGGER_BUTTON_GPIO_1)
@@ -183,6 +192,7 @@ typedef struct logger_config_screen_s {
     .sail_logo = 1, \
     .stat_speed = 1, \
     .screen_rotation = SCR_DEFAULT_ROTATION, \
+    .bat_view = bat_volt, \
     .screen_no_auto_refresh = !SCR_AUTO_REFRESH, \
     LOGGER_CONFIG_SCREEN_GPIO12_SCREENS \
 }

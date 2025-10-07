@@ -23,6 +23,7 @@
 
 static const char *TAG = "config";
 SemaphoreHandle_t c_sem_lock = 0;
+uint8_t config_initialized = 0;
 #define CFG_FILE_NAME "config.txt"
 #define CFG_FILE_NAME_BACKUP "config.txt.bak"
 #define CFG_FILE_NAME_DEFAULT "default.json"
@@ -74,6 +75,8 @@ static const char * const screen_rotations[] = {SCREEN_ROTATION_ITEM_LIST(STRING
 static const char * const channels[] = {FW_UPDATE_CHANNEL_ITEM_LIST(STRINGIFY)};
 static const char * const not_set = "not set";
 const char * const seconds_list[] = {"1 sec", "2 sec", "3 sec", "4 sec", "5 sec"};
+
+const char * const bat_views[] = {"icon", "percentage", "voltage"};
 
 /// @brief  Get the config lock
 /// @param timeout 
@@ -199,6 +202,13 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
                 else
                     item->desc = not_set;
                 break;
+            case cfg_bat_view: // ])) {
+                item->value = config->screen.bat_view;
+                if(config->screen.bat_view < lengthof(bat_views))
+                    item->desc = bat_views[config->screen.bat_view];
+                else
+                    item->desc = not_set;
+                break;
             default:
                 item->desc = not_set;
                 break;
@@ -258,9 +268,14 @@ int set_screen_cfg_item(logger_config_t * config, int num) {
                 ret = cfg_sail_logo;
                 break;
             case cfg_screen_rotation: // ])) {
-                if(config->screen.screen_rotation >= lengthof(screen_rotations)) config->screen.screen_rotation = 0;
+                if(config->screen.screen_rotation >= lengthof(screen_rotations)-1) config->screen.screen_rotation = 0;
                 else ++config->screen.screen_rotation;
                 ret = cfg_screen_rotation;
+                break;
+            case cfg_bat_view: // ])) {
+                if(config->screen.bat_view >= lengthof(bat_views)-1) config->screen.bat_view = 0;
+                else ++config->screen.bat_view;
+                ret = cfg_bat_view;
                 break;
             default:
                 break;
@@ -283,10 +298,14 @@ logger_config_t *config_new() {
 }
 
 void config_delete(logger_config_t *config) {
-    free(config);
+    if(config) {
+        free(config);
+    }
 }
 
 logger_config_t *config_init(logger_config_t *config) {
+    if(!config) return 0;
+    if(config_initialized) return config;
     logger_config_t cf = LOGGER_CONFIG_DEFAULTS();
     memcpy(config, &cf, sizeof(logger_config_t));
     if(!c_sem_lock)
@@ -302,14 +321,17 @@ logger_config_t *config_init(logger_config_t *config) {
     strbf_put_path(&buf, vfs_ctx.parts[vfs_ctx.config_part].mount_point);
     strbf_put_path(&buf, CFG_FILE_NAME_DEFAULT);
     esp_event_post(LOGGER_CONFIG_EVENT, LOGGER_CONFIG_EVENT_INIT_DONE, config, sizeof(logger_config_t), portMAX_DELAY);
+    config_initialized = 1;
     return config;
 }
 
 void config_deinit(logger_config_t *config) {
+    if(!config_initialized) return;
     if(c_sem_lock){
         vSemaphoreDelete(c_sem_lock);
         c_sem_lock = 0;
     }
+    config_initialized = 0;
 }
 
 logger_config_t *config_defaults(logger_config_t *config) {
@@ -467,6 +489,10 @@ uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t fo
         case cfg_screen_rotation:
             ret = set_hhu(value, (uint8_t*)&config->screen.screen_rotation, 0);
             if(!ret) changed = cfg_screen_rotation;
+            break;  // type of filenaming, with MAC adress or datetime
+        case cfg_bat_view:
+            ret = set_hhu(value, (uint8_t*)&config->screen.bat_view, 0);
+            if(!ret) changed = cfg_bat_view;
             break;  // type of filenaming, with MAC adress or datetime
         case cfg_sleep_info:
             ret = set_c(value, &config->sleep_info[0], 0);
@@ -845,6 +871,8 @@ int config_compare(logger_config_t *orig, logger_config_t *config) {
             return cfg_hostname+1;
         if (config->screen.screen_rotation != orig->screen.screen_rotation)
             return cfg_screen_rotation;
+        if (config->screen.bat_view != orig->screen.bat_view)
+            return cfg_bat_view;
         if (config->fwupdate.update_enabled != orig->fwupdate.update_enabled)
             return cfg_update_enabled;
         if (config->fwupdate.channel != orig->fwupdate.channel)
@@ -1017,6 +1045,13 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
                 if (mode) {
                     strbf_puts(lsb, ",\"info\":\"screen rotation degrees\",\"type\":\"int\"");
                     add_from_list(lsb, screen_rotations, lengthof(screen_rotations), 0);
+                }
+                break;
+            case cfg_bat_view:
+                strbf_putn(lsb, config->screen.bat_view);
+                if (mode) {
+                    strbf_puts(lsb, ",\"info\":\"screen battery view style\",\"type\":\"int\"");
+                    add_from_list(lsb, bat_views, lengthof(bat_views), 0);
                 }
                 break;
             case cfg_sleep_info:
