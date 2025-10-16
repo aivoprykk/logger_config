@@ -32,9 +32,18 @@ static char config_file_path[PATH_MAX_CHAR_SIZE] = {0};
 static char config_file_backup_path[PATH_MAX_CHAR_SIZE] = {0};
 static char config_file_default_path[PATH_MAX_CHAR_SIZE] = {0};
 
+// RTC_DATA_ATTR logger_config_t m_logger_config = LOGGER_CONFIG_DEFAULTS();
+
 ESP_EVENT_DEFINE_BASE(LOGGER_CONFIG_EVENT);
 /// @brief List of logger config event strings
-const char * const logger_config_event_strings[] = {LOGGER_CONFIG_EVENT_LIST(STRINGIFY)};
+#if (C_LOG_LEVEL < 2)
+static const char * const _logger_config_event_strings[] = { LOGGER_CONFIG_EVENT_LIST(STRINGIFY) };
+const char * logger_config_event_strings(int id) {
+    return _logger_config_event_strings[id];
+}
+#else
+const char * logger_config_event_strings(int id) {return "LOGGER_CONFIG_EVENT";}
+#endif
 
 #define BOARD_LOGO_ITEM_LIST(l) l(Starboard) l(Fanatic) l(JP) l(Patrik)
 #define SAIL_LOGO_ITEM_LIST(l) l(GASails) l(Duotone) l(NeilPryde) l(LoftSails) l(Gunsails) l(Point7) l(Patrik)
@@ -124,9 +133,7 @@ struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, i
 }
 
 int set_fw_update_cfg_item(logger_config_t * config, int num) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-#endif
+    FUNC_ENTRY_ARGS(TAG, " num:%d", num);
     if(!config) return 0;
     if(num>=2) return 0;
     const char *name = config_fw_update_items[num];
@@ -148,9 +155,7 @@ int set_fw_update_cfg_item(logger_config_t * config, int num) {
 }
 
 struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-#endif
+    FUNC_ENTRY_ARGS(TAG, " num:%d", num);
     if(!config) return 0;
     if(!item) return 0;
     item->name = config_screen_items[num];
@@ -220,9 +225,7 @@ struct m_config_item_s * get_screen_cfg_item(const logger_config_t *config, int 
 }
 
 int set_screen_cfg_item(logger_config_t * config, int num) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-#endif
+    FUNC_ENTRY_ARGS(TAG, " num:%d", num);
     if(!config) return 0;
     if(num>=config_screen_item_count) return 0;
     const char *name = config_screen_items[num];
@@ -335,12 +338,12 @@ void config_deinit(logger_config_t *config) {
 }
 
 logger_config_t *config_defaults(logger_config_t *config) {
-    ILOG(TAG,"[%s]",__func__);
+    FUNC_ENTRY(TAG);
     return config;
 }
 
 logger_config_t *config_clone(logger_config_t *orig, logger_config_t *config) {
-    ILOG(TAG,"[%s]",__func__);
+    FUNC_ENTRY(TAG);
     if (!orig || !config)
         return config;
     memcpy(config, orig, sizeof(logger_config_t));
@@ -348,9 +351,7 @@ logger_config_t *config_clone(logger_config_t *orig, logger_config_t *config) {
 }
 
 uint8_t cfg_get_pos(const char *str) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] str: %s", __func__, str ? str : "-");
-#endif
+    FUNC_ENTRY_ARGS(TAG, " str: %s", str ? str : "-");
     if (!str) {
         return 254;
     }
@@ -390,9 +391,7 @@ uint8_t cfg_get_pos(const char *str) {
 }
 
 uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t force) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] pos: %hhu", __func__, pos);
-#endif
+    FUNC_ENTRY_ARGS(TAG, " pos: %hhu", pos);
     if (!el) {
         return 254;
     }
@@ -407,24 +406,7 @@ uint8_t cnf_set_item(logger_config_t *config, uint8_t pos, void * el, uint8_t fo
 #endif
     if(cfg_lock(portMAX_DELAY) == pdTRUE) {
         switch(pos) {
-    #ifdef USE_CUSTOM_CALIBRATION_VAL
-        case cfg_cal_bat: // ])) {  // calibration for read out bat voltage
-            if (value->tag != JSON_NUMBER) {
-                goto err;
-            }
-            float val = value->data.number_;
-            if (force || val != config->cal_bat) {
-                config->cal_bat = value->data.number_;
-                if (!str) {
-                    if (m_context_rtc.RTC_calibration_bat != config->cal_bat)
-                        m_context_rtc.RTC_calibration_bat = config->cal_bat;
-                }
-                changed = 1;
-            }
-
-            break;
-    #endif
-        case cfg_speed_field: // choice for first field in speed screen !!!
+    case cfg_speed_field: // choice for first field in speed screen !!!
             ret = set_hhu(value, &config->screen.speed_field, 0);
             if(!ret) changed = cfg_speed_field;
             break;
@@ -571,9 +553,7 @@ const char * config_get_var_name(const char * str, void * root) {
 }
 
 int config_set(logger_config_t *config, const char *str, void *root, uint8_t force) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s] name: %s",__func__, str ? str : "-");
-#endif
+    FUNC_ENTRY_ARGS(TAG, " name: %s", str ? str : "-");
     if (!root) return 254;
     uint8_t changed = 255;
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
@@ -618,9 +598,7 @@ err:
 }
 
 int config_set_var(logger_config_t *config, const char *json, const char *var) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] '%s'", __func__, json ? json : var ? var : "-");
-#endif
+    FUNC_ENTRY_ARGS(TAG, " json: %s, var: %s", json ? json : "-", var ? var : "-");
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
     cJSON *root = cJSON_Parse(json);
 #else
@@ -642,32 +620,22 @@ int config_set_var(logger_config_t *config, const char *json, const char *var) {
 }
 
 int config_save_var(struct logger_config_s *config, const char *json, const char *var) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s] name: %s",__func__, var ? var : "-");
-    IMEAS_START();
-#endif
+    FUNC_ENTRY_ARGS(TAG," name: %s", var ? var : "-");
     int ret = -1;
     ret = config_set_var(config, json, var);
     if (ret >= 0) {
         ret = config_save_json(config);
     }
-#if (C_LOG_LEVEL < 3)
-    IMEAS_END(TAG, "[%s] took %llu us", __func__);
-#endif
     return ret;
 }
 
 int config_save_var_b(logger_config_t *config, const char *json) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
     return config_save_var(config, json, 0);
 }
 
 esp_err_t config_decode(logger_config_t *config, const char *json) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
     int ret = ESP_OK, changed;
     gps_config_decode(json);
 #if defined(CONFIG_GPS_LOG_USE_CJSON)
@@ -736,10 +704,7 @@ esp_err_t config_decode(logger_config_t *config, const char *json) {
 }
 
 esp_err_t config_load_json(logger_config_t *config) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-    IMEAS_START();
-#endif
+    FUNC_ENTRY(TAG);
     int ret = ESP_OK;
     char *json = 0;
     const char *path = config_file_path;
@@ -757,9 +722,7 @@ esp_err_t config_load_json(logger_config_t *config) {
     }
     else
         WLOG(TAG,"[%s] read %s.",__func__, path);
-#if (C_LOG_LEVEL < 2)
     DLOG(TAG, "[%s] %s", __func__ , json);
-#endif
     ret = config_decode(config, json);
 done:
     // cfg_unlock();
@@ -767,16 +730,11 @@ done:
     if (json)
         free(json);
     esp_event_post(LOGGER_CONFIG_EVENT, LOGGER_CONFIG_EVENT_LOAD_DONE, config, sizeof(logger_config_t), portMAX_DELAY);
-#if (C_LOG_LEVEL < 3)
-    IMEAS_END(TAG, "[%s] took %llu us", __func__);
-#endif
     return ret;
 }
 
 esp_err_t config_save_json(logger_config_t *config) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
     int ret = ESP_OK;
     strbf_t sb;
     strbf_init(&sb);
@@ -796,9 +754,7 @@ esp_err_t config_save_json(logger_config_t *config) {
         json_delete(root);
 #endif
     }
-#if (C_LOG_LEVEL < 2)
     DLOG(TAG, "[%s] save json: %s", __func__, json);
-#endif
 #ifdef CONFIG_LOGGER_VFS_ENABLED
     s_rename_file_n(config_file_path, config_file_backup_path, 1);
     ret = s_write(config_file_path, 0, sb.start, sb.cur - sb.start);
@@ -811,9 +767,7 @@ done:
 }
 
 logger_config_t *config_fix_values(logger_config_t *config) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
 #if defined(CONFIG_LOGGER_STAT_SCREEN_ROTATION)
     if (config->screen.stat_screens_time < 1)
         config->screen.stat_screens_time = 1;
@@ -907,7 +861,7 @@ static uint8_t add_from_list(strbf_t *lsb, const char * const *list, size_t len,
 }
 
 uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, uint8_t mode) {
-    ILOG(TAG,"[%s] pos: %hhu",__func__, pos);
+    FUNC_ENTRY_ARGS(TAG," pos: %hhu", pos);
     if (!lsb) return 254;
     if(pos >= config_item_count) {
         return 255;
@@ -924,14 +878,6 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
     strbf_putc(lsb, ':');
     if(cfg_lock(portMAX_DELAY) == pdTRUE) {
         switch (pos) {
-        #ifdef USE_CUSTOM_CALIBRATION_VAL
-            case cfg_cal_bat: // calibration for read out bat voltage
-                strbf_putd(lsb, config->cal_bat, 1, 4);
-                if (mode) {
-                    strbf_puts(lsb, ",\"info\":\"calibration for read out bat voltage\",\"type\":\"float\",\"ext\":\"V\"");
-                }
-            break;
-        #endif
             case cfg_speed_field: // choice for first field in speed screen !!!
                 strbf_putn(lsb, config->screen.speed_field);
                 if (mode) {
@@ -1125,9 +1071,7 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
     return pos;
 }
 char *config_get(const logger_config_t *config, const char *name, struct strbf_s *lsb, uint8_t mode) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] %s", __func__, name ? name : "-");
-#endif
+    FUNC_ENTRY_ARGS(TAG, " %s", name ? name : "-");
     if(!lsb) return 0;
     uint8_t pos = cfg_get_pos(name);
     if(pos == 255) {
@@ -1142,9 +1086,7 @@ char *config_get(const logger_config_t *config, const char *name, struct strbf_s
 }
 
 char *config_encode_json(logger_config_t *config, strbf_t *sb) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
     size_t blen = BUFSIZ / 3 * 2, len = 0;
     char buf[blen], *p = 0;
 

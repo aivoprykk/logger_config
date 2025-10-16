@@ -267,6 +267,8 @@ typedef struct logger_config_s {
     .config_changed_screen_cb = NULL, \
 }
 
+extern logger_config_t m_logger_config;
+
 struct strbf_s;
 
 /*

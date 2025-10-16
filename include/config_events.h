@@ -24,7 +24,7 @@ enum {
     LOGGER_CONFIG_EVENT_LIST(ENUM)
 };
 
-extern const char * const logger_config_event_strings[];
+const char * logger_config_event_strings(int id);
 
 #ifdef __cplusplus
 }
