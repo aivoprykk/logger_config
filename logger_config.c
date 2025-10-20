@@ -36,7 +36,7 @@ static char config_file_default_path[PATH_MAX_CHAR_SIZE] = {0};
 
 ESP_EVENT_DEFINE_BASE(LOGGER_CONFIG_EVENT);
 /// @brief List of logger config event strings
-#if (C_LOG_LEVEL < 2)
+#if (C_LOG_LEVEL <= LOG_INFO_NUM)
 static const char * const _logger_config_event_strings[] = { LOGGER_CONFIG_EVENT_LIST(STRINGIFY) };
 const char * logger_config_event_strings(int id) {
     return _logger_config_event_strings[id];
@@ -108,9 +108,7 @@ static void cfg_unlock() {
 /// @param item - config item struct
 /// @return - config item struct
 struct m_config_item_s * get_fw_update_cfg_item(const logger_config_t *config, int num, struct m_config_item_s *item) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG, "[%s] num:%d", __func__, num);
-#endif
+    FUNC_ENTRY_ARGS(TAG, " num:%d", num);
     if(!config) return 0;
     if(!item) return 0;
     item->name = config_fw_update_items[num];
@@ -583,9 +581,7 @@ int config_set(logger_config_t *config, const char *str, void *root, uint8_t for
     }
     uint8_t pos = cfg_get_pos(var);
     if (pos >= 254) {
-#if (C_LOG_LEVEL < 2)
         DLOG(TAG, "[%s] ! var", __func__);
-#endif
         changed = 255;
         goto err;
     }
@@ -776,9 +772,7 @@ logger_config_t *config_fix_values(logger_config_t *config) {
 }
 
 int config_compare(logger_config_t *orig, logger_config_t *config) {
-#if (C_LOG_LEVEL < 3)
-    ILOG(TAG,"[%s]",__func__);
-#endif
+    FUNC_ENTRY(TAG);
     if (!orig || !config)
         return -1;
     if (orig && !config)
@@ -1065,9 +1059,7 @@ uint8_t cnf_get_item(const logger_config_t *config, uint8_t pos, strbf_t * lsb, 
         err:
         cfg_unlock();
     }
-#if (C_LOG_LEVEL < 2)
     DLOG(TAG, "[%s] conf: %s len: %d", __func__, strbf_finish(lsb), lsb->cur - lsb->start);
-#endif
     return pos;
 }
 char *config_get(const logger_config_t *config, const char *name, struct strbf_s *lsb, uint8_t mode) {
